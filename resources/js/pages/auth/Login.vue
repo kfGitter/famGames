@@ -20,8 +20,40 @@ const form = useForm({
     remember: false,
 });
 
+// import { router } from '@inertiajs/vue3';
+
+// const submit = () => {
+//     form.post(route('login'), {
+//         onSuccess: () => {
+//             alert('Login successful! Redirecting to dashboard...');
+//             router.visit('/dashboard');
+//         },
+//         onFinish: () => form.reset('password'),
+//     });
+// };
+
+
+
+// const submit = () => {
+//     form.post(route('login'), {
+//         onSuccess: () => {
+//             alert('Login successful');
+//             window.location.href = '/dashboard'; // 🔁 This is the redirect
+//         },
+//         onError: (errors) => {
+//             console.error('Login failed', errors);
+//             alert('Login failed');
+//         },
+
+//         onFinish: () => form.reset('password'),
+//     });
+// };
+
 const submit = () => {
     form.post(route('login'), {
+        onSuccess: () => {
+            alert('Login successful! Redirecting to dashboard...');
+        },
         onFinish: () => form.reset('password'),
     });
 };
@@ -38,11 +70,11 @@ const submit = () => {
         <form @submit.prevent="submit" class="flex flex-col gap-6">
             <div class="grid gap-6">
                 <div class="grid gap-2">
-                    <Label for="email" class="text-gray-600" >Email address</Label>
+                    <Label for="email" class="text-gray-600">Email address</Label>
                     <Input
                         id="email"
                         type="email"
-                        class="!bg-gray-50"  
+                        class="!bg-gray-50 text-black"
                         required
                         autofocus
                         :tabindex="1"
@@ -68,7 +100,7 @@ const submit = () => {
                     <Input
                         id="password"
                         type="password"
-                        class="!bg-gray-50"
+                        class="!bg-gray-50 text-black"
                         required
                         :tabindex="2"
                         autocomplete="current-password"
@@ -86,7 +118,7 @@ const submit = () => {
                 </div>
 
                 <Button type="submit" class="mt-4 w-full bg-blue-200 text-blue-900" :tabindex="4" :disabled="form.processing">
-                    <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin " />
+                    <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                     Log in
                 </Button>
             </div>

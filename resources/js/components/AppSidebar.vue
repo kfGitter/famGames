@@ -1,12 +1,26 @@
 <script setup lang="ts">
-import NavFooter from '@/components/NavFooter.vue';
+import DarkModeToggle from '@/components/DarkModeToggle.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import { LayoutGrid } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
+
+
+// import { Gamepad2, Medal, Users } from 'lucide-vue-next';
+import {
+    Gamepad2,
+    List,
+    Medal,
+    //   Joystick,
+    Trophy,
+    //   BookOpen,
+    //   Folder,
+    // LayoutGrid,
+    Users,
+} from 'lucide-vue-next';
 
 const mainNavItems: NavItem[] = [
     {
@@ -14,20 +28,46 @@ const mainNavItems: NavItem[] = [
         href: '/dashboard',
         icon: LayoutGrid,
     },
+    {
+        title: 'Family Members',
+        href: '/members',
+        icon: Users,
+    },
+    {
+        title: 'Game Library',
+        href: '/games',
+        icon: List,
+    },
+    {
+        title: 'My Games',
+        href: '/my-games',
+        icon: Gamepad2,
+    },
+    {
+        title: 'Achievements',
+        href: '/achievements',
+        icon: Medal,
+    },
+    {
+        title: 'Leaderboards',
+        href: '/leaderboards',
+        icon: Trophy,
+    },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
-];
+// ------- Footer Navigation Items
+// const footerNavItems: NavItem[] = [
+//     {
+//         title: 'Github Repo',
+//         href: 'https://github.com/laravel/vue-starter-kit',
+//         icon: Folder,
+//     },
+//     {
+//         title: 'Documentation',
+//         href: 'https://laravel.com/docs/starter-kits#vue',
+//         icon: BookOpen,
+//     },
+// ];
 </script>
 
 <template>
@@ -49,7 +89,14 @@ const footerNavItems: NavItem[] = [
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
+            <!-- dark mode toggle -->
+
+            <div class="sidebar-content flex flex-col justify-between">
+                <div class="mt-auto p-4">
+                    <DarkModeToggle />
+                </div>
+            </div>
+            <!-- <NavFooter :items="footerNavItems" /> -->
             <NavUser />
         </SidebarFooter>
     </Sidebar>

@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'family_name',
     ];
 
     /**
@@ -45,4 +46,10 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function games()
+{
+    return $this->belongsToMany(Game::class, 'game_user')->withTimestamps();
+}
+
 }
