@@ -19,13 +19,16 @@ const page = usePage();
 const addToMyGames = () => {
     router.post(route('my-games.store', props.game.id));
 };
+const goBack = () => {
+    window.history.back();
+};
 </script>
 
 <template>
     <div class="mx-auto max-w-3xl rounded bg-white p-6 text-black shadow">
         <!-- Back Button -->
         <div class="mb-4">
-            <Button @click="$inertia.visit(route('games'))" class="bg-gray-300 text-black hover:bg-gray-400"> ← Back to Game Library </Button>
+            <Button @click="goBack" class="bg-gray-300 text-black hover:bg-gray-400"> ← Back </Button>
         </div>
 
         <!-- Title -->
@@ -53,8 +56,8 @@ const addToMyGames = () => {
         </div>
 
         <!-- Add to My Games Button -->
-        <div class="mt-6">
+        <!-- <div class="mt-6">
             <Button @click="addToMyGames" class="bg-green-600 text-white hover:bg-green-700"> Add to My Games </Button>
-        </div>
+        </div> -->
     </div>
 </template>

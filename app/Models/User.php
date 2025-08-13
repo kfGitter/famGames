@@ -52,4 +52,15 @@ class User extends Authenticatable
     return $this->belongsToMany(Game::class, 'game_user')->withTimestamps();
 }
 
+public function family()
+{
+    return $this->belongsTo(\App\Models\Family::class);
+}
+
+public function gameSessions()
+{
+    return $this->belongsToMany(GameSession::class, 'game_session_user')->withTimestamps();
+}
+
+
 }

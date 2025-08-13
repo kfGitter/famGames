@@ -1,25 +1,60 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { defineProps, ref, computed } from 'vue';
+import { Link } from '@inertiajs/vue3';
+import { computed, defineProps, ref, watch } from 'vue';
 
-const props = defineProps<{
-    games: Array<{
-        id: number;
-        title: string;
-        description: string | null;
-    }>;
-}>();
+interface Game {
+    id: number;
+    title: string;
+    description: string | null;
+}
+
+const props = defineProps<{ games: Game[] }>();
 
 const search = ref('');
 
-// Computed filtered list of games
-const filteredGames = computed(() => {
-    return props.games.filter((game) =>
-        game.title.toLowerCase().includes(search.value.toLowerCase())
-    );
-});
-</script>
+// local copy so we can remove locally
+const localGames = ref<Game[]>([...props.games]);
 
+watch(
+    () => props.games,
+    (val) => {
+        localGames.value = [...val];
+    },
+    { deep: true },
+);
+
+const filteredGames = computed(() => {
+    return localGames.value.filter((game) => game.title.toLowerCase().includes(search.value.toLowerCase()));
+});
+
+async function removeGame(game: Game) {
+    if (!confirm(`Remove "${game.title}" from your games?`)) return;
+
+    try {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+        const res = await fetch(`/my-games/${game.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                Accept: 'application/json',
+            },
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: 'Failed to remove game' }));
+            throw new Error(err.message || 'Failed to remove game');
+        }
+
+        // Remove from local list
+        localGames.value = localGames.value.filter((g) => g.id !== game.id);
+    } catch (error: any) {
+        console.error(error);
+        alert(error.message || 'Could not remove game. Try again.');
+    }
+}
+</script>
 
 <template>
     <AppLayout>
@@ -31,19 +66,30 @@ const filteredGames = computed(() => {
 
             <!-- Scrollable game list -->
             <div class="max-h-[70vh] divide-y overflow-y-auto">
-    <!-- <div class="mx-auto max-w-4xl rounded bg-white p-6 text-black shadow"> -->
-        
-        <!-- <h1 class="mb-6 text-2xl font-bold border-0">My Games</h1> -->
-        <div v-if="filteredGames.length === 0" class="text-center text-gray-500">You have not added any games yet.</div>
-        <ul>
-            <li v-for="game in filteredGames"  :key="game.id" class="mb-4 rounded border border-gray-300 p-4 hover:bg-gray-100">
-                <h2 class="text-xl font-semibold">{{ game.title }}</h2>
-                <p class="text-gray-700">{{ game.description || 'No description available.' }}</p>
-            </li>
-        </ul>
+                <div v-if="filteredGames.length === 0" class="text-center text-gray-500">You have not added any games yet.</div>
 
+                <ul>
+                    <li v-for="game in filteredGames" :key="game.id" class="mb-4 rounded border border-gray-300 p-4 hover:bg-gray-100">
+                        <h2 class="text-xl font-semibold">{{ game.title }}</h2>
 
-    </div>
+                        <div class="flex justify-end gap-2">
+                            <!-- View details using Inertia Link -->
+                            <Link :href="`/games/${game.id}`" class="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700">
+                                View details
+                            </Link>
+
+                            <!-- Start using Inertia Link to /start-game/:id -->
+                            <Link :href="`/start-game/${game.id}`" class="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700">
+                                Start
+                            </Link>
+
+                            <button @click="removeGame(game)" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700">Remove</button>
+                        </div>
+
+                        <p class="text-gray-700">{{ game.description || 'No description available.' }}</p>
+                    </li>
+                </ul>
+            </div>
         </div>
     </AppLayout>
 </template>

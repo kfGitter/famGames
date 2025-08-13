@@ -30,7 +30,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Family Members',
-        href: '/members',
+        href: '/family-members',
         icon: Users,
     },
     {
@@ -71,7 +71,7 @@ const mainNavItems: NavItem[] = [
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset">
+    <Sidebar collapsible="icon" variant="inset" >
         <SidebarHeader>
             <SidebarMenu>
                 <SidebarMenuItem>
@@ -88,17 +88,14 @@ const mainNavItems: NavItem[] = [
             <NavMain :items="mainNavItems" />
         </SidebarContent>
 
-        <SidebarFooter>
-            <!-- dark mode toggle -->
+        <SidebarFooter class="px-3 py-4 flex flex-col items-start space-y-4">
+  <div class="flex items-center space-x-2">
+    <DarkModeToggle />
+    <!-- <span class="text-sm text-gray-600 select-none  "> <b>Dark/light mode</b></span> -->
+  </div>
+  <NavUser />
+</SidebarFooter>
 
-            <div class="sidebar-content flex flex-col justify-between">
-                <div class="mt-auto p-4">
-                    <DarkModeToggle />
-                </div>
-            </div>
-            <!-- <NavFooter :items="footerNavItems" /> -->
-            <NavUser />
-        </SidebarFooter>
     </Sidebar>
     <slot />
 </template>

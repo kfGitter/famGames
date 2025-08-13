@@ -22,7 +22,7 @@ const toggleTheme = () => {
 <template>
     <button
         @click="toggleTheme"
-        class="relative flex items-center justify-between w-14 h-8 rounded-full bg-gray-300 dark:bg-gray-600 p-1 transition-all duration-300"
+        class="relative flex items-center justify-between -ml-2 w-12 h-8 rounded-full bg-gray-300 dark:bg-gray-600 p-1 transition-all duration-300"
         :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
     >
         <Sun class="h-4 w-4 text-yellow-500 " :class="{ 'opacity-100': !isDark, 'opacity-0': isDark }" />

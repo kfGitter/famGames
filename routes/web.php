@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\UserGameController;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -9,54 +10,42 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
-// Route::get('dashboard', function () {
-//     return Inertia::render('Dashboard');
-// })->middleware(['auth', 'verified'])->name('dashboard');
+
+use App\Http\Controllers\GameSessionController;
+use App\Http\Controllers\FamilyMemberController;
+use Illuminate\Support\Facades\Auth;
 
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard', [
-        'auth' => ['user' => Auth::user()],
-    ]);
-})->middleware(['auth'])->name('dashboard');
+Route::middleware(['auth'])->group(function () {
+    // Dashboard
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard', [
+            'auth' => ['user' => Auth::user()],
+        ]);
+    })->name('dashboard');
 
+    // Games index & show
+    Route::get('/games', [GameController::class, 'index'])->name('games');
+    Route::get('/games/{game}', [GameController::class, 'show'])->name('games.show');
 
+    // My Games (list, add, remove)
+    Route::get('/my-games', [UserGameController::class, 'index'])->name('my-games.index');
+    Route::post('/my-games/{game}', [UserGameController::class, 'store'])->name('my-games.store');
+    Route::delete('/my-games/{game}', [UserGameController::class, 'destroy'])->name('my-games.destroy');
 
-// Route to view all games in the library
-Route::get('/games', function () {
-    return Inertia::render('Games/Index', [
-        'auth' => ['user' => Auth::user()],
-    ]);
-})->name('games')->middleware(['auth']);
+   Route::middleware('auth')->group(function () {
+    Route::get('/start-game/{game}', [GameSessionController::class, 'create'])->name('game.start');
+    Route::post('/start-game/{game}', [GameSessionController::class, 'store'])->name('game.store');
+    Route::get('/game-session/{gameSession}/scores', [GameSessionController::class, 'enterScores'])->name('game.session.scores.enter');
+    Route::post('/game-session/{gameSession}/scores', [GameSessionController::class, 'saveScores'])->name('game.session.scores.save');
+});
 
-Route::get('/games', [GameController::class, 'index'])
-    ->middleware('auth')
-    ->name('games');
-
-// Show a specific game in the games library
-Route::get('/games/{game}', [GameController::class, 'show'])
-    ->middleware('auth')
-    ->name('games.show');
-
-// View all My Games
-Route::get('/my-games', [MyGamesController::class, 'index'])->name('my-games.index');
-
-// Add a game (you already have this)
-Route::post('/my-games/{game}', [MyGamesController::class, 'store'])->name('my-games.store');
-
-// Remove a game
-Route::delete('/my-games/{game}', [MyGamesController::class, 'destroy'])->name('my-games.destroy');
-
-
-// User Game Controller for handling user-specific game actions
-Route::post('/my-games/{game}', [UserGameController::class, 'store'])
-    ->middleware('auth')
-    ->name('my-games.store');
-
-// Game Controller for handling game-related actions
-Route::middleware('auth')->group(function () {
-    Route::get('/my-games', [GameController::class, 'myGames'])->name('my-games.index');
-    Route::post('/my-games/{game}', [GameController::class, 'addToMyGames'])->name('my-games.store');
+    // Family members
+    Route::get('/family-members', [FamilyMemberController::class, 'index'])->name('family-members.index');
+    Route::get('/family-members/create', [FamilyMemberController::class, 'create'])->name('family-members.create');
+    Route::post('/family-members', [FamilyMemberController::class, 'store'])->name('family-members.store');
+    Route::get('/family-members/{member}', [FamilyMemberController::class, 'show'])->name('family-members.show');
+    Route::delete('/family-members/{member}', [FamilyMemberController::class, 'destroy'])->name('family-members.destroy');
 });
 
 
