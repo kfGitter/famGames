@@ -83,6 +83,7 @@ class GameSessionController extends Controller
         foreach ($validated['scores'] as $entry) {
             GameScore::create([
                 'game_session_id' => $gameSession->id,
+                'family_id' => Auth::user()->family->id,
                 'family_member_id' => $entry['family_member_id'],
                 'score' => $entry['score'],
             ]);
@@ -90,6 +91,6 @@ class GameSessionController extends Controller
 
         $gameSession->update(['status' => 'completed']);
 
-        return redirect()->route('dashboard')->with('message', 'Scores saved! Session completed.');
+        return redirect()->route('my-games.index')->with('message', 'Scores saved! Session completed.');
     }
 }

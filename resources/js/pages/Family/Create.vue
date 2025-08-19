@@ -1,5 +1,6 @@
 <script setup>
 import { router, useForm } from '@inertiajs/vue3';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 const form = useForm({
     name: '',
@@ -19,6 +20,7 @@ function submit() {
 </script>
 
 <template>
+    <AppLayout>
     <div class="mx-auto max-w-md p-6">
         <h1 class="mb-4 text-xl font-bold">ADD NEW MEMBER</h1>
 
@@ -43,4 +45,5 @@ function submit() {
             </div>
         </div>
     </div>
+    </AppLayout>
 </template>

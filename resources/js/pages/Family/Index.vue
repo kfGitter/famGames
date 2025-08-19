@@ -1,11 +1,14 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import AppLayout from '@/layouts/AppLayout.vue';
+
 const props = defineProps({
     members: Array,
 });
 </script>
 
 <template>
+    <AppLayout>
     <div class="mx-auto max-w-3xl p-6">
         <div class="mb-6 flex items-center justify-between">
             <h1 class="text-2xl font-bold">FAMILY MEMBERS</h1>
@@ -29,4 +32,5 @@ const props = defineProps({
             </li>
         </ul>
     </div>
+    </AppLayout>
 </template>
