@@ -16,19 +16,19 @@ class GameSessionController extends Controller
     {
         $user = Auth::user();
 
-    // If user has no family or no members in their family
-    if (! $user->family || $user->family->members->isEmpty()) {
-        return redirect()
-            ->route('family-members.index')
-            ->with('error', 'Add members in your family to start playing!');
-    }
+        // If user has no family or no members in their family
+        if (! $user->family || $user->family->members->isEmpty()) {
+            return redirect()
+                ->route('family-members.index')
+                ->with('error', 'Add members in your family to start playing!');
+        }
 
-    $members = $user->family->members()->orderBy('name')->get();
+        $members = $user->family->members()->orderBy('name')->get();
 
-    return Inertia::render('Games/Start', [
-        'game' => $game,
-        'members' => $members,
-    ]);
+        return Inertia::render('Games/Start', [
+            'game' => $game,
+            'members' => $members,
+        ]);
     }
 
     // Create new session for the game with selected players
@@ -45,6 +45,8 @@ class GameSessionController extends Controller
 
         $gameSession = $game->sessions()->create([
             'user_id' => Auth::id(),
+            'family_id' => Auth::user()->family_id,
+            'game_id' => $game->id,
             'status' => 'in_progress',
         ]);
 
@@ -61,7 +63,7 @@ class GameSessionController extends Controller
 
         // Debugging
         //  dd($gameSession->game);
-        
+
 
         return Inertia::render('Games/EnterScores', [
             'gameSession' => $gameSession,
@@ -71,26 +73,49 @@ class GameSessionController extends Controller
     }
 
     // Save scores for a session and mark session completed
+
     public function saveScores(Request $request, GameSession $gameSession)
     {
         $validated = $request->validate([
-    'scores' => 'required|array',
-    'scores.*.family_member_id' => 'required|exists:family_members,id',
-    'scores.*.score' => 'required|integer|min:0',
-]);
+            'scores' => 'required|array|min:1',
+            'scores.*.family_member_id' => 'required|exists:family_members,id',
+            'scores.*.score' => 'required|integer|min:0',
+        ]);
 
+        $familyId = Auth::user()->family_id;
 
+        // Save all scores
         foreach ($validated['scores'] as $entry) {
-            GameScore::create([
-                'game_session_id' => $gameSession->id,
-                'family_id' => Auth::user()->family->id,
-                'family_member_id' => $entry['family_member_id'],
-                'score' => $entry['score'],
-            ]);
+            GameScore::updateOrCreate(
+                [
+                    'game_session_id'   => $gameSession->id,
+                    'family_member_id'  => $entry['family_member_id'],
+                ],
+                [
+                    'family_id'         => $familyId,         // ✅ ensure not null
+                    'score'             => $entry['score'],
+                ]
+            );
         }
 
-        $gameSession->update(['status' => 'completed']);
+        // Determine winner (single winner; tie-break = first max)
+        $top = GameScore::where('game_session_id', $gameSession->id)
+            ->orderByDesc('score')
+            ->orderBy('id') // deterministic tie-breaker
+            ->first();
 
-        return redirect()->route('my-games.index')->with('message', 'Scores saved! Session completed.');
+        $gameSession->update([
+            'status' => 'completed',
+            'winner_family_member_id' => $top?->family_member_id, // nullable if somehow missing
+        ]);
+
+        // after $gameSession->update([...]);
+
+        app(\App\Services\AchievementService::class)->evaluateAfterSession($gameSession);
+
+        // (Optional) trigger achievements check here
+        // app(AchievementService::class)->evaluateForSession($gameSession);
+
+        return redirect()->route('dashboard')->with('message', 'Scores saved! Session completed.');
     }
 }

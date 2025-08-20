@@ -18,6 +18,9 @@ class DatabaseSeeder extends Seeder
             GameSeeder::class,
         ]);
 
+        $this->call(AchievementSeeder::class);
+
+
         User::firstOrCreate(
             ['email' => 'test@example.com'],
             [

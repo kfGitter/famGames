@@ -48,6 +48,19 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/family-members/{member}', [FamilyMemberController::class, 'destroy'])->name('family-members.destroy');
 });
 
+use App\Http\Controllers\LeaderboardsController;
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/leaderboards', [LeaderboardsController::class, 'index'])->name('leaderboards.index');
+});
+
+use App\Http\Controllers\AchievementController;
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/achievements', [AchievementController::class, 'index'])->name('achievements.index');
+    Route::get('/achievements/{member}', [AchievementController::class, 'show'])->name('achievements.show');
+});
+
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';
