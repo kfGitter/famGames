@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\CustomUserGame;
 
 class User extends Authenticatable
 {
@@ -60,6 +61,11 @@ public function family()
 public function gameSessions()
 {
     return $this->belongsToMany(GameSession::class, 'game_session_user')->withTimestamps();
+}
+
+public function customUserGames()
+{
+    return $this->hasMany(CustomUserGame::class);
 }
 
 

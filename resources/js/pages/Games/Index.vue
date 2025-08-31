@@ -5,13 +5,41 @@ import { computed, ref } from 'vue';
 
 const form = useForm({});
 
-function addToMyGames(gameId: number) {
-    form.post(route('my-games.store', gameId), {
-        preserveScroll: true,
-        onSuccess: () => {
-            alert('Game added to My Games!');
+// function addToMyGames(gameId: number) {
+//     form.post(route('my-games.store', gameId), {
+//         preserveScroll: true,
+//         onSuccess: () => {
+//             alert('Game added to My Games!');
+//         },
+//     });
+// }
+
+interface Game {
+    id: number;
+    title: string;
+    description: string;
+}
+
+function viewGame(game) {
+    const type = game.custom ? 'custom' : 'system';
+    // Use a direct URL instead of Ziggy
+    window.location.href = `/games/${game.id}/${type}`;
+}
+
+async function addToMyGames(game: Game) {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+    await fetch('/my-games', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
         },
+        body: JSON.stringify({ game_id: game.id }),
     });
+
+    alert(`Added ${game.title} to your MyGames!`);
 }
 
 // Define props at top level
@@ -45,13 +73,21 @@ const filteredGames = computed(() => props.games.filter((game) => game.title.toL
 
                     <!-- Right: Buttons -->
                     <div class="flex gap-2">
-                        <inertia-link :href="route('games.show', game.id)" class="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700">
+                        <!-- <inertia-link :href="route('games.show', game.id)" class="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700">
                             View Game
-                        </inertia-link>
+                        </inertia-link> -->
+                        <button @click="viewGame(game)" class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+                                View Details
+                            </button>
 
-                        <button type="button" class="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700" @click="addToMyGames(game.id)">
+                        <!-- <button type="button" class="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700" @click="addToMyGames(game.id)">
                             Add to My Games
+                        </button> -->
+
+                        <button @click="addToMyGames(game)" class="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700">
+                            Add to MyGames
                         </button>
+
                     </div>
                 </div>
             </div>

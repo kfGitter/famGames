@@ -2,40 +2,81 @@
 
 namespace App\Http\Controllers;
 
-
 use App\Models\Game;
+use App\Models\CustomUserGame;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\RedirectResponse;
 
 class UserGameController extends Controller
 {
-    public function store(Game $game): RedirectResponse
+    // List all MyGames (system + custom)
+    public function index()
     {
-        Auth::user()->games()->syncWithoutDetaching($game->id);
-        return back()->with('message', 'Game added to your library!');
+        $user = Auth::user();
+
+        $systemGames = $user->games()->get()->map(fn($g) => [
+            'id' => $g->id,
+            'title' => $g->title,
+            'description' => $g->description,
+            'custom' => false,
+        ]);
+
+        $customGames = $user->customUserGames()->get()->map(fn($g) => [
+            'id' => $g->id,
+            'title' => $g->title,
+            'description' => $g->description,
+            'custom' => true,
+        ]);
+
+        $games = $systemGames->concat($customGames);
+
+        return inertia('Games/MyGames', ['games' => $games]);
     }
 
-    public function destroy(Game $game)
-{
-    $user = auth()->user();
+    // Add system or custom game
+    public function store(Request $request)
+    {
+        if ($request->custom) {
+            // ✅ Custom game
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'rules' => 'nullable|string',
+                'min_players' => 'nullable|integer|min:1',
+                'max_players' => 'nullable|integer|min:1',
+                'category' => 'nullable|string|max:255',
+            ]);
 
-    if (! $user->games()->where('game_id', $game->id)->exists()) {
-        return response()->json(['message' => 'Game not found in your library.'], 404);
+            Auth::user()->customUserGames()->create($request->only([
+                'title','description','rules','min_players','max_players','category'
+            ]));
+
+            return back()->with('success', 'Custom game added!');
+        } else {
+            // ✅ System game
+            $request->validate([
+                'game_id' => 'required|integer|exists:games,id',
+            ]);
+
+            Auth::user()->games()->syncWithoutDetaching($request->game_id);
+
+            return back()->with('success', 'Game added to MyGames!');
+        }
     }
 
-    $user->games()->detach($game->id);
+    // Remove system or custom game
+    public function destroy($id, Request $request)
+    {
+        $type = $request->query('type', 'system');
 
-    return response()->json(['message' => 'Game removed from your library.']);
-}
+        if ($type === 'custom') {
+            $game = Auth::user()->customUserGames()->findOrFail($id);
+            $game->delete();
+        } else {
+            $game = Game::findOrFail($id);
+            Auth::user()->games()->detach($game->id);
+        }
 
-public function index()
-{
-    $games = auth()->user()->games()->get();
-
-    return inertia('Games/MyGames', [
-        'games' => $games
-    ]);
-}
-
-
+        return response()->json(['message' => 'Game removed!']);
+    }
 }

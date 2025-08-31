@@ -8,55 +8,70 @@ use App\Models\GameScore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Models\CustomUserGame;
+
 
 class GameSessionController extends Controller
 {
     // Show page to start a new session for a game (select players)
-    public function create(Game $game)
-    {
-        $user = Auth::user();
 
-        // If user has no family or no members in their family
-        if (! $user->family || $user->family->members->isEmpty()) {
-            return redirect()
-                ->route('family-members.index')
-                ->with('error', 'Add members in your family to start playing!');
-        }
+public function create($id, $type = 'system')
+{
+    $user = Auth::user();
 
-        $members = $user->family->members()->orderBy('name')->get();
-
-        return Inertia::render('Games/Start', [
-            'game' => $game,
-            'members' => $members,
-        ]);
+    if (! $user->family || $user->family->members->isEmpty()) {
+        return redirect()->route('family-members.index')
+            ->with('error', 'Add members in your family to start playing!');
     }
 
-    // Create new session for the game with selected players
-    public function store(Request $request, Game $game)
-    {
-        $messages = [
-            'players.min' => 'You must select at least 2 players to start a game.',
-        ];
+    $members = $user->family->members()->orderBy('name')->get();
 
-        $validated = $request->validate([
-            'players' => 'required|array|min:2',
-            'players.*' => 'exists:family_members,id',
-        ], $messages);
-
-        $gameSession = $game->sessions()->create([
-            'user_id' => Auth::id(),
-            'family_id' => Auth::user()->family_id,
-            'game_id' => $game->id,
-            'status' => 'in_progress',
-        ]);
-
-        $gameSession->players()->attach($validated['players']);
-
-        // Redirect to score entry page for the created session
-        return redirect()->route('game.session.scores.enter', $gameSession->id);
+    if ($type === 'custom') {
+        $game = CustomUserGame::where('user_id', $user->id)->findOrFail($id);
+    } else {
+        $game = Game::findOrFail($id);
     }
 
-    // Show the score entry form for the session
+    return Inertia::render('Games/Start', [
+        'game' => $game,
+        'members' => $members,
+        'type' => $type,
+    ]);
+}
+
+public function store(Request $request, $id, $type = 'system')
+{
+    $messages = [
+        'players.min' => 'You must select at least 2 players to start a game.',
+    ];
+
+    $validated = $request->validate([
+        'players' => 'required|array|min:2',
+        'players.*' => 'exists:family_members,id',
+    ], $messages);
+
+    $user = Auth::user();
+
+    if ($type === 'custom') {
+        $game = CustomUserGame::where('user_id', $user->id)->findOrFail($id);
+    } else {
+        $game = Game::findOrFail($id);
+    }
+
+    $gameSession = GameSession::create([
+        'user_id' => $user->id,
+        'family_id' => $user->family_id,
+        'game_id' => $game->id,
+        'status' => 'in_progress',
+        'is_custom' => $type === 'custom', // optional flag in DB
+    ]);
+
+    $gameSession->players()->attach($validated['players']);
+
+    return redirect()->route('game.session.scores.enter', $gameSession->id);
+}
+
+  // Show the score entry form for the session
     public function enterScores(GameSession $gameSession)
     {
         $gameSession->load('players', 'game');
@@ -109,7 +124,6 @@ class GameSessionController extends Controller
             'winner_family_member_id' => $top?->family_member_id, // nullable if somehow missing
         ]);
 
-        // after $gameSession->update([...]);
 
         app(\App\Services\AchievementService::class)->evaluateAfterSession($gameSession);
 
