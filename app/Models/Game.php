@@ -17,4 +17,10 @@ class Game extends Model
     return $this->hasMany(GameSession::class);
 }
 
+public function tags()
+{
+    return $this->belongsToMany(Tag::class, 'game_tag');
+}
+
+
 }

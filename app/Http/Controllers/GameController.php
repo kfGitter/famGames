@@ -7,36 +7,48 @@ use App\Models\CustomUserGame;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Tag;
+
 
 
 class GameController extends Controller
 {
-    public function index()
-    {
-        $games = Game::all();
-        return Inertia::render('Games/Index', [
-            'games' => $games,
-        ]);
-    }
+    // public function index()
+    // {
+    //     $games = Game::all();
+    //     return Inertia::render('Games/Index', [
+    //         'games' => $games,
+    //     ]);
+    // }
 
 
-
-
-public function show($id, $type)
+public function index()
 {
-    $type = $type ?? 'system';
+    $games = Game::with('tags')->get(); // eager load tags
+    $tags = Tag::all();
 
-    if ($type === 'custom') {
-        $game = CustomUserGame::where('id', $id)->firstOrFail();
-    } else {
-        $game = Game::findOrFail($id);
-    }
-
-    return Inertia::render('Games/Show', [
-        'game' => $game,
-        'type' => $type,
+    return Inertia::render('Games/Index', [
+        'games' => $games,
+        'tags' => $tags,
     ]);
 }
+
+    public function show($id, $type)
+    {
+        $type = $type ?? 'system';
+
+        if ($type === 'custom') {
+            $game = CustomUserGame::where('id', $id)->firstOrFail();
+        } else {
+            // $game = Game::findOrFail($id);
+            $game = Game::with('tags')->findOrFail($id);
+        }
+
+        return Inertia::render('Games/Show', [
+            'game' => $game,
+            'type' => $type,
+        ]);
+    }
 
 
 

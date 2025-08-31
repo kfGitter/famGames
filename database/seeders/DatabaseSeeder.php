@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(AchievementSeeder::class);
+        $this->call(TagSeeder::class);
 
 
         User::firstOrCreate(

@@ -2,14 +2,28 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Game;
+use App\Models\Tag;
 
 class GameSeeder extends Seeder
 {
     public function run(): void
     {
+        // Make sure tags exist first
+        $tagNames = [
+            'Quick Play', 'Strategy', 'Team Play', 'All Ages',
+            'Parents vs Kids', 'Card Game', 'Board Game', 'Active Game',
+            'Word Game', 'Competitive', 'Trivia & Quiz',
+            'Drawing & Creativity', 'Funny', 'Chill', 'Travel Friendly'
+        ];
+
+        $tags = [];
+        foreach ($tagNames as $name) {
+            $tags[$name] = Tag::firstOrCreate(['name' => $name]);
+        }
+
+        // Define games with associated tags
         $games = [
             [
                 'title' => 'Charades',
@@ -18,6 +32,7 @@ class GameSeeder extends Seeder
                 'min_players' => 4,
                 'max_players' => 20,
                 'category' => 'Acting',
+                'tags' => ['Funny', 'Team Play', 'All Ages', 'Active Game'],
             ],
             [
                 'title' => 'Pictionary',
@@ -26,6 +41,7 @@ class GameSeeder extends Seeder
                 'min_players' => 4,
                 'max_players' => 12,
                 'category' => 'Drawing',
+                'tags' => ['Drawing & Creativity', 'Team Play', 'Funny'],
             ],
             [
                 'title' => 'Family Quiz',
@@ -34,6 +50,7 @@ class GameSeeder extends Seeder
                 'min_players' => 2,
                 'max_players' => 10,
                 'category' => 'Trivia',
+                'tags' => ['Trivia & Quiz', 'Competitive', 'All Ages'],
             ],
             [
                 'title' => 'Guess the Song',
@@ -42,6 +59,7 @@ class GameSeeder extends Seeder
                 'min_players' => 2,
                 'max_players' => 10,
                 'category' => 'Music',
+                'tags' => ['Quick Play', 'Funny', 'Parents vs Kids'],
             ],
             [
                 'title' => '20 Questions',
@@ -50,6 +68,7 @@ class GameSeeder extends Seeder
                 'min_players' => 2,
                 'max_players' => 8,
                 'category' => 'Guessing',
+                'tags' => ['Strategy', 'Chill', 'Travel Friendly'],
             ],
             [
                 'title' => 'Scavenger Hunt',
@@ -58,6 +77,7 @@ class GameSeeder extends Seeder
                 'min_players' => 2,
                 'max_players' => 15,
                 'category' => 'Adventure',
+                'tags' => ['Active Game', 'Team Play', 'Funny'],
             ],
             [
                 'title' => 'Word Chain',
@@ -66,11 +86,21 @@ class GameSeeder extends Seeder
                 'min_players' => 2,
                 'max_players' => 10,
                 'category' => 'Word',
+                'tags' => ['Word Game', 'Quick Play', 'Travel Friendly'],
             ],
         ];
 
-        foreach ($games as $game) {
-            Game::firstOrCreate(['title' => $game['title']], $game);
+        // Seed games and attach tags
+        foreach ($games as $gameData) {
+            $game = Game::firstOrCreate(
+                ['title' => $gameData['title']],
+                $gameData
+            );
+
+            if (isset($gameData['tags'])) {
+                $tagIds = collect($gameData['tags'])->map(fn($name) => $tags[$name]->id);
+                $game->tags()->sync($tagIds); // sync ensures correct tags
+            }
         }
     }
 }

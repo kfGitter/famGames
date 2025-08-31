@@ -5,6 +5,8 @@ use App\Http\Controllers\UserGameController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Models\Tag;
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
@@ -14,6 +16,9 @@ Route::get('/', function () {
 use App\Http\Controllers\GameSessionController;
 use App\Http\Controllers\FamilyMemberController;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\LeaderboardsController;
+use App\Http\Controllers\AchievementController;
+
 
 
 Route::middleware(['auth'])->group(function () {
@@ -29,12 +34,12 @@ Route::middleware(['auth'])->group(function () {
     // Route::get('/games', [GameController::class, 'index'])->name('games.index')->middleware('auth');
 
     Route::get('/games/{id}/{type?}', [GameController::class, 'show'])->name('games.show');
+});
 
-
-    // My Games (list, add, remove)
-    // Route::get('/my-games', [UserGameController::class, 'index'])->name('my-games.index');
-    // Route::post('/my-games/{game}', [UserGameController::class, 'store'])->name('my-games.store');
-    // Route::delete('/my-games/{game}', [UserGameController::class, 'destroy'])->name('my-games.destroy');
+// My Games (list, add, remove)
+// Route::get('/my-games', [UserGameController::class, 'index'])->name('my-games.index');
+// Route::post('/my-games/{game}', [UserGameController::class, 'store'])->name('my-games.store');
+// Route::delete('/my-games/{game}', [UserGameController::class, 'destroy'])->name('my-games.destroy');
 
     Route::middleware('auth')->group(function () {
     Route::get('/my-games', [UserGameController::class, 'index'])->name('my-games.index');
@@ -43,12 +48,20 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/my-games', [UserGameController::class, 'store'])->name('my-games.store');
     Route::delete('/my-games/{id}', [UserGameController::class, 'destroy'])->name('my-games.destroy');
 
-    // show the custom game creation form
-Route::get('/my-games/create', function () {
-    return inertia('Games/AddCustomGame');
-})->name('my-games.create');
+//     // show the custom game creation form
+// Route::get('/my-games/create', function () {
+//     return inertia('Games/AddCustomGame');
+// })->name('my-games.create');
 
-});
+// });
+
+Route::get('/my-games/create', function () {
+    $tags = Tag::all(); // Fetch all available tags
+
+    return inertia('Games/AddCustomGame', [
+        'tags' => $tags
+    ]);
+})->name('my-games.create');
 
 //    Route::middleware('auth')->group(function () {
 //     Route::get('/start-game/{game}', [GameSessionController::class, 'create'])->name('game.start');
@@ -76,13 +89,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('/family-members/{member}', [FamilyMemberController::class, 'destroy'])->name('family-members.destroy');
 });
 
-use App\Http\Controllers\LeaderboardsController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/leaderboards', [LeaderboardsController::class, 'index'])->name('leaderboards.index');
 });
 
-use App\Http\Controllers\AchievementController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/achievements', [AchievementController::class, 'index'])->name('achievements.index');
