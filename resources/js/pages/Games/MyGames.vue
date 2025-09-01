@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import { StarIcon as StarOutline } from '@heroicons/vue/24/outline';
+import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { Link } from '@inertiajs/vue3';
 import { computed, defineProps, ref, watch } from 'vue';
 
@@ -9,6 +11,7 @@ interface Game {
     description: string | null;
     tags: Array<{ id: number; name: string }>;
     custom?: boolean;
+    is_favorite?: boolean;
 }
 
 const props = defineProps<{ games: Game[] }>();
@@ -17,13 +20,6 @@ const search = ref('');
 
 // local copy so we can remove locally
 const localGames = ref<Game[]>([...props.games]);
-
-// const selectedTags = ref<number[]>([]); // selected tag IDs
-// const allTags = ref<Game['tags']>([]); // all available tags from your games
-
-// // Initialize allTags from games once
-// allTags.value = Array.from(new Map(localGames.value.flatMap((g) => g.tags).map((t) => [t.id, t])).values());
-
 const selectedTags = ref<number[]>([]);
 const allTags = ref<Game['tags']>([]);
 
@@ -36,18 +32,6 @@ watch(
     },
     { deep: true },
 );
-
-// const filteredGames = computed(() => {
-//     return localGames.value.filter((game) => game.title.toLowerCase().includes(search.value.toLowerCase()));
-// });
-
-// const filteredGames = computed(() => {
-//     return localGames.value.filter((game) => {
-//         const matchesSearch = game.title.toLowerCase().includes(search.value.toLowerCase());
-//         const matchesTags = selectedTags.value.length === 0 || selectedTags.value.every((tagId) => game.tags.some((t) => t.id === tagId));
-//         return matchesSearch && matchesTags;
-//     });
-// });
 
 const filteredGames = computed(() => {
     return localGames.value.filter((game) => {
@@ -95,6 +79,47 @@ async function removeGame(game: Game) {
         alert(error.message || 'Could not remove game. Try again.');
     }
 }
+
+import axios from 'axios';
+
+// const toggleFavorite = async (game: any) => {
+//     const type = game.custom ? 'custom' : 'system';
+
+//     try {
+//         await axios.post(`/my-games/${type}/${game.id}/favorite`);
+//         game.is_favorite = !game.is_favorite; // flip star instantly
+//     } catch (err) {
+//         console.error('Error toggling favorite:', err);
+//     }
+// };
+
+// const toggleFavorite = (game: any) => {
+//     const type = game.is_custom ? 'custom' : 'system';
+
+//     router.post(`/my-games/${type}/${game.id}/favorite`, {}, {
+//         preserveScroll: true,
+//         onSuccess: (page) => {
+//             // backend now returns the updated value
+//             if (page.props.is_favorite !== undefined) {
+//                 game.is_favorite = page.props.is_favorite;
+//             }
+//         },
+//         onError: (err) => {
+//             console.error("Error toggling favorite:", err);
+//         }
+//     });
+// };
+
+const toggleFavorite = async (game: any) => {
+    const type = game.is_custom ? 'custom' : 'system';
+
+    try {
+        const response = await axios.post(`/my-games/${type}/${game.id}/favorite`);
+        game.is_favorite = response.data.is_favorite; // update from backend
+    } catch (err) {
+        console.error('Error toggling favorite:', err);
+    }
+};
 </script>
 
 <template>
@@ -108,17 +133,18 @@ async function removeGame(game: Game) {
             <div class="mb-4 flex justify-end">
                 <Link href="/my-games/create" class="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"> + Add Custom Game </Link>
             </div>
-            <!-- Tag Filter Pills -->
-            <!-- <div class="no-scrollbar mb-4 flex gap-2 overflow-x-auto py-2">
+
+            <!-- Tags  -->
+            <div class="no-scrollbar mb-4 flex gap-2 overflow-x-auto py-2">
                 <button
                     v-for="tag in allTags"
                     :key="tag.id"
                     @click="
                         () => {
                             if (selectedTags.includes(tag.id)) {
-                                selectedTags.value = selectedTags.value.filter((id) => id !== tag.id);
+                                selectedTags = selectedTags.filter((id) => id !== tag.id);
                             } else {
-                                selectedTags.value.push(tag.id);
+                                selectedTags.push(tag.id);
                             }
                         }
                     "
@@ -131,30 +157,6 @@ async function removeGame(game: Game) {
                 >
                     {{ tag.name }}
                 </button>
-            </div> -->
-
-            <div class="no-scrollbar mb-4 flex gap-2 overflow-x-auto py-2">
-            <button
-                v-for="tag in allTags"
-                :key="tag.id"
-                @click="
-                    () => {
-                        if (selectedTags.includes(tag.id)) {
-                            selectedTags = selectedTags.filter((id) => id !== tag.id);
-                        } else {
-                            selectedTags.push(tag.id);
-                        }
-                    }
-                "
-                :class="[
-                    'rounded-full border px-3 py-1 text-sm whitespace-nowrap transition',
-                    selectedTags.includes(tag.id)
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200',
-                ]"
-            >
-                {{ tag.name }}
-            </button>
             </div>
 
             <!-- Scrollable game list -->
@@ -163,24 +165,25 @@ async function removeGame(game: Game) {
 
                 <ul>
                     <li v-for="game in filteredGames" :key="game.id" class="mb-4 rounded border border-gray-300 p-4 hover:bg-gray-100">
+                        <!-- Star -->
+                        <button @click="toggleFavorite(game)">
+                            <component
+                                :is="game.is_favorite ? StarSolid : StarOutline"
+                                class="h-6 w-6"
+                                :class="game.is_favorite ? 'text-yellow-400' : 'text-gray-400'"
+                            />
+                        </button>
+
+                        
+
+                        <!-- game name -->
                         <h2 class="text-xl font-semibold">{{ game.title }}</h2>
 
-                        <!-- ✅ Show tags -->
-                        <!-- <div class="mt-2 flex flex-wrap gap-2">
-                            <span v-for="tag in game.tags" :key="tag.id" class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-600">
-                                {{ tag.name }}
-                            </span>
-                        </div> -->
-
+                        <!-- buttons -->
                         <div class="flex justify-end gap-2">
-                            <!-- View details using Inertia Link -->
-                            <!-- <Link :href="`/games/${game.id}`" class="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"> View details </Link> -->
                             <button @click="viewGame(game)" class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
                                 View Details
                             </button>
-
-                            <!-- Start using Inertia Link to /start-game/:id -->
-                            <!-- <Link :href="`/start-game/${game.id}`" class="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"> Start </Link> -->
                             <button @click="startGame(game)" class="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700">Start</button>
                             <button @click="removeGame(game)" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700">Remove</button>
                         </div>
