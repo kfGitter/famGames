@@ -18,6 +18,17 @@ const search = ref('');
 // local copy so we can remove locally
 const localGames = ref<Game[]>([...props.games]);
 
+// const selectedTags = ref<number[]>([]); // selected tag IDs
+// const allTags = ref<Game['tags']>([]); // all available tags from your games
+
+// // Initialize allTags from games once
+// allTags.value = Array.from(new Map(localGames.value.flatMap((g) => g.tags).map((t) => [t.id, t])).values());
+
+const selectedTags = ref<number[]>([]);
+const allTags = ref<Game['tags']>([]);
+
+allTags.value = Array.from(new Map(localGames.value.flatMap((g) => g.tags).map((t) => [t.id, t])).values());
+
 watch(
     () => props.games,
     (val) => {
@@ -26,8 +37,24 @@ watch(
     { deep: true },
 );
 
+// const filteredGames = computed(() => {
+//     return localGames.value.filter((game) => game.title.toLowerCase().includes(search.value.toLowerCase()));
+// });
+
+// const filteredGames = computed(() => {
+//     return localGames.value.filter((game) => {
+//         const matchesSearch = game.title.toLowerCase().includes(search.value.toLowerCase());
+//         const matchesTags = selectedTags.value.length === 0 || selectedTags.value.every((tagId) => game.tags.some((t) => t.id === tagId));
+//         return matchesSearch && matchesTags;
+//     });
+// });
+
 const filteredGames = computed(() => {
-    return localGames.value.filter((game) => game.title.toLowerCase().includes(search.value.toLowerCase()));
+    return localGames.value.filter((game) => {
+        const matchesSearch = game.title.toLowerCase().includes(search.value.toLowerCase());
+        const matchesTags = selectedTags.value.length === 0 || selectedTags.value.every((tagId) => game.tags.some((t) => t.id === tagId));
+        return matchesSearch && matchesTags;
+    });
 });
 
 function viewGame(game) {
@@ -78,7 +105,57 @@ async function removeGame(game: Game) {
                 <input v-model="search" type="text" placeholder="Search games..." class="w-full rounded border border-gray-300 p-2 text-black" />
             </div>
 
-            <Link href="/my-games/create" class="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"> + Add Custom Game </Link>
+            <div class="mb-4 flex justify-end">
+                <Link href="/my-games/create" class="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"> + Add Custom Game </Link>
+            </div>
+            <!-- Tag Filter Pills -->
+            <!-- <div class="no-scrollbar mb-4 flex gap-2 overflow-x-auto py-2">
+                <button
+                    v-for="tag in allTags"
+                    :key="tag.id"
+                    @click="
+                        () => {
+                            if (selectedTags.includes(tag.id)) {
+                                selectedTags.value = selectedTags.value.filter((id) => id !== tag.id);
+                            } else {
+                                selectedTags.value.push(tag.id);
+                            }
+                        }
+                    "
+                    :class="[
+                        'rounded-full border px-3 py-1 text-sm whitespace-nowrap transition',
+                        selectedTags.includes(tag.id)
+                            ? 'border-blue-600 bg-blue-600 text-white'
+                            : 'border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200',
+                    ]"
+                >
+                    {{ tag.name }}
+                </button>
+            </div> -->
+
+            <div class="no-scrollbar mb-4 flex gap-2 overflow-x-auto py-2">
+            <button
+                v-for="tag in allTags"
+                :key="tag.id"
+                @click="
+                    () => {
+                        if (selectedTags.includes(tag.id)) {
+                            selectedTags = selectedTags.filter((id) => id !== tag.id);
+                        } else {
+                            selectedTags.push(tag.id);
+                        }
+                    }
+                "
+                :class="[
+                    'rounded-full border px-3 py-1 text-sm whitespace-nowrap transition',
+                    selectedTags.includes(tag.id)
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200',
+                ]"
+            >
+                {{ tag.name }}
+            </button>
+            </div>
 
             <!-- Scrollable game list -->
             <div class="max-h-[70vh] divide-y overflow-y-auto">
@@ -89,11 +166,11 @@ async function removeGame(game: Game) {
                         <h2 class="text-xl font-semibold">{{ game.title }}</h2>
 
                         <!-- ✅ Show tags -->
-                        <div class="mt-2 flex flex-wrap gap-2">
+                        <!-- <div class="mt-2 flex flex-wrap gap-2">
                             <span v-for="tag in game.tags" :key="tag.id" class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-600">
                                 {{ tag.name }}
                             </span>
-                        </div>
+                        </div> -->
 
                         <div class="flex justify-end gap-2">
                             <!-- View details using Inertia Link -->
