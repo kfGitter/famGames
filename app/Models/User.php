@@ -48,10 +48,18 @@ class User extends Authenticatable
         ];
     }
 
-    public function games()
+//     public function games()
+// {
+//     return $this->belongsToMany(Game::class, 'game_user')->withTimestamps();
+// }
+
+public function games()
 {
-    return $this->belongsToMany(Game::class, 'game_user')->withTimestamps();
+    return $this->belongsToMany(Game::class)
+                ->withPivot('is_favorite')  // <- add this
+                ->withTimestamps();
 }
+
 
 public function family()
 {

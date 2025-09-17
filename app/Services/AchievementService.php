@@ -32,6 +32,19 @@ class AchievementService
                 FamilyMember::find($winnerId)?->awardAchievement('streak_master');
             }
         }
+        // Alternative approach using StreakService (if you want to track daily streaks too)
+        $dailyStreak = app(\App\Services\StreakService::class)->updateStreak($member, 'daily', \Carbon\Carbon::today()->toDateString());
+
+        if ($dailyStreak->count >= 2) {
+            FamilyMember::find($winnerId)?->awardAchievement('streak_master'); // fires your existing method
+        }
+
+        //2.5
+        // Weekly family streak can award "Streak Boss 🔥"
+        $weeklyFamilyStreak = app(\App\Services\StreakService::class)->updateFamilyWeeklyStreak($member->family, \Carbon\Carbon::today()->startOfWeek());
+        if ($weeklyFamilyStreak && $weeklyFamilyStreak->count >= 1) {
+            FamilyMember::find($winnerId)?->awardAchievement('streak_boss');
+        }
 
         // 3) Overall Champ 👑 (>=500 cumulative points)
         foreach ($memberIds as $mid) {
@@ -43,7 +56,7 @@ class AchievementService
         $totalGames = Game::count();
         if ($totalGames > 0) {
             foreach ($memberIds as $mid) {
-                $distinctGames = GameScore::join('game_sessions','game_scores.game_session_id','=','game_sessions.id')
+                $distinctGames = GameScore::join('game_sessions', 'game_scores.game_session_id', '=', 'game_sessions.id')
                     ->where('game_scores.family_id', $familyId)
                     ->where('game_scores.family_member_id', $mid)
                     ->distinct('game_sessions.game_id')
@@ -55,15 +68,15 @@ class AchievementService
         }
 
         // 5) Family Favorite 🎯 (most-played game in family; member has 5+ plays in it)
-        $fav = GameSession::where('family_id',$familyId)
+        $fav = GameSession::where('family_id', $familyId)
             ->select('game_id', DB::raw('COUNT(*) as c'))
             ->groupBy('game_id')->orderByDesc('c')->first();
         if ($fav) {
             foreach ($memberIds as $mid) {
-                $playsInFav = GameScore::join('game_sessions','game_scores.game_session_id','=','game_sessions.id')
-                    ->where('game_scores.family_id',$familyId)
-                    ->where('game_scores.family_member_id',$mid)
-                    ->where('game_sessions.game_id',$fav->game_id)
+                $playsInFav = GameScore::join('game_sessions', 'game_scores.game_session_id', '=', 'game_sessions.id')
+                    ->where('game_scores.family_id', $familyId)
+                    ->where('game_scores.family_member_id', $mid)
+                    ->where('game_sessions.game_id', $fav->game_id)
                     ->count();
                 if ($playsInFav >= 5) {
                     FamilyMember::find($mid)?->awardAchievement('family_favorite');
@@ -76,7 +89,7 @@ class AchievementService
             $newbies = GameScore::where('game_session_id', $session->id)
                 ->pluck('family_member_id')
                 ->filter(function ($mid) use ($familyId) {
-                    $plays = GameScore::where('family_id',$familyId)->where('family_member_id',$mid)->count();
+                    $plays = GameScore::where('family_id', $familyId)->where('family_member_id', $mid)->count();
                     return $plays === 1; // i.e., this was their first session
                 });
             if ($newbies->isNotEmpty()) {

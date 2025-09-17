@@ -34,72 +34,84 @@ class GameSeeder extends Seeder
                 'category' => 'Acting',
                 'tags' => ['Funny', 'Team Play', 'All Ages', 'Active Game'],
             ],
+
             [
                 'title' => 'Pictionary',
-                'description' => 'Draw the word for your team to guess.',
-                'rules' => 'No letters, numbers, or verbal hints.',
+                'description' => 'Draw a word or phrase while others guess what it is.',
+                'rules' => 'No letters or numbers allowed in drawings.',
+                'min_players' => 4,
+                'max_players' => 16,
+                'category' => 'Drawing',
+                'tags' => ['Funny', 'Team Play', 'All Ages', 'Active Game'],
+            ],
+
+            [
+                'title' => 'Trivia Quiz',
+                'description' => 'Answer questions from various categories.',
+                'rules' => 'Players take turns answering questions.',
+                'min_players' => 2,
+                'max_players' => 10,
+                'category' => 'Quiz',
+                'tags' => ['Competitive', 'All Ages', 'Chill'],
+            ],
+
+            [
+                'title' => 'Mafia',
+                'description' => 'Deduce who among the players is part of the mafia.',
+                'rules' => 'Players discuss and vote to eliminate suspects.',
+                'min_players' => 6,
+                'max_players' => 20,
+                'category' => 'Social Deduction',
+                'tags' => ['Team Play', 'All Ages', 'Chill'],
+            ],
+
+            [
+                'title' => 'Codenames',
+                'description' => 'Give one-word clues to help your team guess words.',
+                'rules' => 'No gestures or sounds allowed.',
                 'min_players' => 4,
                 'max_players' => 12,
-                'category' => 'Drawing',
-                'tags' => ['Drawing & Creativity', 'Team Play', 'Funny'],
+                'category' => 'Word Game',
+                'tags' => ['Team Play', 'All Ages', 'Chill'],
             ],
             [
-                'title' => 'Family Quiz',
-                'description' => 'Trivia questions for all ages.',
-                'rules' => 'Answer correctly to score points.',
+                'title' => 'Exploding Kittens',
+                'description' => 'A card game about kittens that explode.',
+                'rules' => 'Players take turns drawing cards until someone draws an exploding kitten.',
                 'min_players' => 2,
-                'max_players' => 10,
-                'category' => 'Trivia',
-                'tags' => ['Trivia & Quiz', 'Competitive', 'All Ages'],
+                'max_players' => 5,
+                'category' => 'Card Game',
+                'tags' => ['Funny', 'Team Play', 'All Ages'],
             ],
             [
-                'title' => 'Guess the Song',
-                'description' => 'Listen to a short clip and guess the song title or artist.',
-                'rules' => 'No use of music recognition apps. Teams take turns.',
+                'title' => 'Sushi Go!',
+                'description' => 'A fast-paced card game about sushi dishes.',
+                'rules' => 'Players draft cards to create the best sushi meal.',
                 'min_players' => 2,
-                'max_players' => 10,
-                'category' => 'Music',
-                'tags' => ['Quick Play', 'Funny', 'Parents vs Kids'],
-            ],
-            [
-                'title' => '20 Questions',
-                'description' => 'Guess the object, person, or place within 20 yes/no questions.',
-                'rules' => 'Only yes/no questions allowed.',
-                'min_players' => 2,
-                'max_players' => 8,
-                'category' => 'Guessing',
-                'tags' => ['Strategy', 'Chill', 'Travel Friendly'],
-            ],
-            [
-                'title' => 'Scavenger Hunt',
-                'description' => 'Find and bring back listed items as quickly as possible.',
-                'rules' => 'Items must match the exact description. No cheating.',
-                'min_players' => 2,
-                'max_players' => 15,
-                'category' => 'Adventure',
-                'tags' => ['Active Game', 'Team Play', 'Funny'],
-            ],
-            [
-                'title' => 'Word Chain',
-                'description' => 'Say a word that starts with the last letter of the previous word.',
-                'rules' => 'No repeating words. Must be a valid dictionary word.',
-                'min_players' => 2,
-                'max_players' => 10,
-                'category' => 'Word',
-                'tags' => ['Word Game', 'Quick Play', 'Travel Friendly'],
-            ],
+                'max_players' => 5,
+                'category' => 'Card Game',
+                'tags' => ['Funny', 'Team Play', 'All Ages'],
+            ]
         ];
+
+
 
         // Seed games and attach tags
         foreach ($games as $gameData) {
+            // Remove tags from insert data
+            $tagNames = $gameData['tags'] ?? [];
+            unset($gameData['tags']);
+
+            // Create or fetch the game
             $game = Game::firstOrCreate(
                 ['title' => $gameData['title']],
                 $gameData
             );
 
-            if (isset($gameData['tags'])) {
-                $tagIds = collect($gameData['tags'])->map(fn($name) => $tags[$name]->id);
-                $game->tags()->sync($tagIds); // sync ensures correct tags
+            // Attach tags
+            if (!empty($tagNames)) {
+                $tagIds = collect($tagNames)->map(fn($name) => $tags[$name]->id);
+                $game->tags()->sync($tagIds);
             }
         }
     }

@@ -18,6 +18,7 @@ use App\Http\Controllers\FamilyMemberController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\LeaderboardsController;
 use App\Http\Controllers\AchievementController;
+use App\Http\Controllers\DashboardController;
 
 
 
@@ -28,6 +29,9 @@ Route::middleware(['auth'])->group(function () {
             'auth' => ['user' => Auth::user()],
         ]);
     })->name('dashboard');
+
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
 
     // Games index & show
     Route::get('/games', [GameController::class, 'index'])->name('games');

@@ -13,4 +13,11 @@ class Family extends Model
     {
         return $this->hasMany(FamilyMember::class);
     }
+
+    public function streaks()
+{
+    return $this->morphMany(\App\Models\Streak::class, 'streakable');
+}
+
+
 }

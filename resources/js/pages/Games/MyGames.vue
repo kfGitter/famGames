@@ -110,16 +110,26 @@ import axios from 'axios';
 //     });
 // };
 
-const toggleFavorite = async (game: any) => {
-    const type = game.is_custom ? 'custom' : 'system';
+// const toggleFavorite = async (game: any) => {
+//     const type = game.is_custom ? 'custom' : 'system';
 
+//     try {
+//         const response = await axios.post(`/my-games/${type}/${game.id}/favorite`);
+//         game.is_favorite = response.data.is_favorite; // update from backend
+//     } catch (err) {
+//         console.error('Error toggling favorite:', err);
+//     }
+// };
+const toggleFavorite = async (game: Game) => {
+    const type = game.custom ? 'custom' : 'system';
     try {
-        const response = await axios.post(`/my-games/${type}/${game.id}/favorite`);
-        game.is_favorite = response.data.is_favorite; // update from backend
+        const { data } = await axios.post(`/my-games/${type}/${game.id}/favorite`);
+        game.is_favorite = data.is_favorite; // ✅ updates Vue object directly
     } catch (err) {
         console.error('Error toggling favorite:', err);
     }
 };
+
 </script>
 
 <template>

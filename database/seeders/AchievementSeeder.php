@@ -40,6 +40,23 @@ class AchievementSeeder extends Seeder
                 'name' => 'Newbie Slayer 😂',
                 'description' => 'Beat someone in their first session.',
             ],
+
+            // 🔥 New streak-based achievements
+            [
+                'code' => 'streak_boss',
+                'name' => 'Streak Boss 📅',
+                'description' => 'Played every week (streak starts after 1 week).',
+            ],
+            [
+                'code' => 'daily_streak_master',
+                'name' => 'Daily Streak Master 🌞',
+                'description' => 'Played every day (streak starts after 2 consecutive days).',
+            ],
+            [
+                'code' => 'family_streak',
+                'name' => 'Family Streak 👨‍👩‍👧‍👦',
+                'description' => 'The whole family played together every week.',
+            ],
         ];
 
         foreach ($achievements as $a) {

@@ -19,6 +19,7 @@ class CustomUserGame extends Model
         'min_players',
         'max_players',
         'category',
+        'is_favorite',
     ];
 
     public function user()
