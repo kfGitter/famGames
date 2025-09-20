@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\UserGameController;
+use App\Http\Controllers\UserController;
+
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -99,6 +101,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/achievements/{member}', [AchievementController::class, 'show'])->name('achievements.show');
 });
 
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/user/avatar', [UserController::class, 'updateAvatar'])->name('user.avatar');
+});
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

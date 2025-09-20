@@ -16,10 +16,20 @@ class UpdateStreaks extends Command
     {
         $this->info('Updating streaks...');
 
-        // Update all members and families using the service
-        $streakService->updateAllStreaks();
+        // Update all family members
+    \App\Models\FamilyMember::all()->each(function ($member) use ($streakService) {
+        $streakService->updateMemberStreaks($member, now());
+    });
 
-        $this->info('Done.');
-        return 0;
+    // Update all families (only weekly available)
+    
+    Family::all()->each(function ($family) use ($streakService) {
+    $streakService->updateFamilyDailyStreak($family, now());
+    $streakService->updateFamilyWeeklyStreak($family, now()->startOfWeek());
+});
+
+
+    $this->info('Done.');
+    return 0;
     }
 }

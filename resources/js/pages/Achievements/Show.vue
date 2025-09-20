@@ -26,6 +26,8 @@ const goBack = () => {
         <div v-for="a in achievements" :key="a.id" class="border rounded p-4 flex flex-col items-center text-center">
           <div class="text-3xl mb-2">
             <span v-if="a.icon">{{ a.icon }}</span>
+
+            <!-- Next: replace with custom icon / image -->
             <span v-else>🏆</span>
           </div>
           <div class="font-medium">{{ a.name }}</div>

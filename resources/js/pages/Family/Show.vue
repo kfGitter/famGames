@@ -1,8 +1,14 @@
-
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+// import { usePage } from '@inertiajs/vue3';
+// import { computed } from 'vue';
+import { defineProps } from 'vue';
+
+
+interface StreakInfo {
+  current: number;
+  best: number;
+}
 
 const props = defineProps<{
     member: { id: number; name: string; avatar?: string | null };
@@ -10,27 +16,34 @@ const props = defineProps<{
     topScores: { game_id: number; game_title: string; best_score: number }[];
     recordsHeld: { game_title: string; record_score: number }[];
     achievements: { id: number; code: string; name: string; icon?: string | null; description?: string | null; awarded_at: string }[];
+
+     family: Record<string, any>,
+  streaks: {
+    daily: StreakInfo,
+    weekly: StreakInfo,
+  }
 }>();
 
-type Streak = { count: number; best: number };
-type Streaks = { daily: Streak; weekly: Streak };
+// type Streak = { count: number; best: number };
+// type Streaks = { daily: Streak; weekly: Streak };
 
-interface PageProps {
-  streaks?: {
-    daily?: Streak;
-    weekly?: Streak;
-  };
+// interface PageProps {
+//   streaks?: {
+//     daily?: Streak;
+//     weekly?: Streak;
+//   };
+
+
   // Add other props if needed
-}
 
-const page = usePage<PageProps>();
 
-const streaks = computed<Streaks>(() => ({
-  daily: page.props.streaks?.daily ?? { count: 0, best: 0 },
-  weekly: page.props.streaks?.weekly ?? { count: 0, best: 0 },
-}));
+// const page = usePage<PageProps>();
+
+// const streaks = computed<Streaks>(() => ({
+//   daily: page.props.streaks?.daily ?? { count: 0, best: 0 },
+//   weekly: page.props.streaks?.weekly ?? { count: 0, best: 0 },
+// }));
 </script>
-
 
 <template>
     <AppLayout>
@@ -43,22 +56,24 @@ const streaks = computed<Streaks>(() => ({
             </div>
 
             <section>
-                <h2 class="mb-2 text-xl font-semibold">Streaks 🔥</h2>
-                <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <div class="rounded-lg border p-4 text-center">
-                        <div class="text-sm text-gray-500">Daily Streak</div>
-                        <!-- ✅ Use computed streaks instead of page.props directly -->
-                        <div class="text-2xl font-bold">{{ streaks.daily.count }} 🔥</div>
-                        <div class="text-xs text-gray-400">Best: {{ streaks.daily.best }}</div>
-                    </div>
+  <h2 class="mb-2 text-xl font-semibold">Streaks 🔥</h2>
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <!-- Daily Streak Card -->
+    <div class="rounded-lg border p-4 text-center">
+      <div class="text-sm text-gray-500">Daily Streak</div>
+      <div class="text-2xl font-bold">{{ props.streaks.daily.current }} 🔥</div>
+      <div class="text-xs text-gray-400">Best: {{ props.streaks.daily.best }}</div>
+    </div>
 
-                    <div class="rounded-lg border p-4 text-center">
-                        <div class="text-sm text-gray-500">Weekly Streak</div>
-                        <div class="text-2xl font-bold">{{ streaks.weekly.count }} 🔥</div>
-                        <div class="text-xs text-gray-400">Best: {{ streaks.weekly.best }}</div>
-                    </div>
-                </div>
-            </section>
+    <!-- Weekly Streak Card -->
+    <div class="rounded-lg border p-4 text-center">
+      <div class="text-sm text-gray-500">Weekly Streak</div>
+      <div class="text-2xl font-bold">{{ props.streaks.weekly.current }} 🔥</div>
+      <div class="text-xs text-gray-400">Best: {{ props.streaks.weekly.best }}</div>
+    </div>
+  </div>
+</section>
+
 
             <!-- Rest of the template stays the same -->
             <div class="grid grid-cols-2 gap-4">

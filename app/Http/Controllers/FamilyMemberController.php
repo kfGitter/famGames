@@ -151,29 +151,31 @@ class FamilyMemberController extends Controller
             ]);
 
 
-            // Initialize the StreakService
-$streakService = app(StreakService::class);
-$today = Carbon::today();
+        // Initialize the StreakService
+        $streakService = app(StreakService::class);
+        $today = Carbon::today();
 
-// Individual daily and weekly streaks
-$memberDailyStreak = $streakService->updateStreak($member, 'daily', $today->toDateString());
-$memberWeeklyStreak = $streakService->updateStreak($member, 'weekly', $today->startOfWeek()->toDateString());
+        // Individual daily and weekly streaks
+        // $memberDailyStreak = $streakService->updateStreak($member, 'daily', $today->toDateString());
+        // $memberWeeklyStreak = $streakService->updateStreak($member, 'weekly', $today->startOfWeek()->toDateString());
 
-return Inertia::render('Family/Show', [
-    'member'        => $member,
-    'stats'         => [
-        'totalPlayed' => $totalPlayed,
-        'wins'        => $wins,
-    ],
-    'topScores'     => $topScores,
-    'recordsHeld'   => $memberRecords,
-    'achievements'  => $achievements,
-    'streaks'       => [
-        'daily'  => $memberDailyStreak?->toArray(),
-        'weekly' => $memberWeeklyStreak?->toArray(),
-    ],
-]);
 
+        $streaks = $streakService->updateMemberStreaks($member, Carbon::today());
+
+        return Inertia::render(
+            'Family/Show',
+            [
+                'member'        => $member,
+                'stats'         => [
+                    'totalPlayed' => $totalPlayed,
+                    'wins'        => $wins,
+                ],
+                'topScores'     => $topScores,
+                'recordsHeld'   => $memberRecords,
+                'achievements'  => $achievements,
+                'streaks'       => $streaks,
+            ],
+        );
     }
 
     // Optional: delete a member

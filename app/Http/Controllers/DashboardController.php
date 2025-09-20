@@ -17,7 +17,7 @@ class DashboardController extends Controller
         $familyId = $user->family_id;        // requires users.family_id (you have User::family())
         $windowDays = 30;                     // rolling window for “participation” + “most active”
 
-        
+
         // Streaks
         $family = $user->family;
 
@@ -28,12 +28,16 @@ class DashboardController extends Controller
             $today = \Carbon\Carbon::today();
             $streakService = app(\App\Services\StreakService::class);
 
-            $familyDailyStreak = $streakService->updateStreak($family, 'daily', $today->toDateString());
+            // Use newly created public methods
+
+            $familyDailyStreak = $streakService->updateFamilyDailyStreak($family, $today);
             $familyWeeklyStreak = $streakService->updateFamilyWeeklyStreak($family, $today->startOfWeek());
         }
+
+
         return Inertia::render('Dashboard', [
             'auth' => [
-                'user' => $user->only(['id', 'name', 'email', 'family_name']),
+                'user' => $user->only(['id', 'name', 'email', 'family_name', 'avatar']),
             ],
             'stats' => [
                 'gamesPlayed'       => $this->gamesPlayed($familyId),
@@ -49,11 +53,69 @@ class DashboardController extends Controller
             'favoriteGames' => $this->favoriteGames($user->id), // array of up to 3 favorites (system + custom)
 
             'streaks' => [
-                'family_daily' => $familyDailyStreak?->toArray(),
-                'family_weekly' => $familyWeeklyStreak?->toArray(),
+                'family_daily' => $familyDailyStreak,
+                'family_weekly' => $familyWeeklyStreak,
             ],
+            'latestAchievements' => $this->latestAchievements($familyId),
+
         ]);
     }
+
+
+    private function latestAchievements(?int $familyId): array
+{
+    if (!$familyId) {
+        return [];
+    }
+
+    // Member achievements
+    $memberAchievements = DB::table('family_member_achievements')
+        ->join('achievements', 'family_member_achievements.achievement_id', '=', 'achievements.id')
+        ->join('family_members', 'family_member_achievements.family_member_id', '=', 'family_members.id')
+        ->where('family_members.family_id', $familyId)
+        ->select(
+            'achievements.id',
+            'achievements.name',
+            'achievements.icon',
+            'achievements.description',
+            'family_member_achievements.awarded_at',
+            'family_members.name as member'
+        )
+        ->get()
+        ->map(function ($row) {
+            return (array) $row + ['type' => 'member'];
+        });
+
+    // Family achievements
+    $familyAchievements = DB::table('family_achievements')
+        ->join('achievements', 'family_achievements.achievement_id', '=', 'achievements.id')
+        ->where('family_achievements.family_id', $familyId)
+        ->select(
+            'achievements.id',
+            'achievements.name',
+            'achievements.icon',
+            'achievements.description',
+            'family_achievements.awarded_at'
+        )
+        ->get()
+        ->map(function ($row) {
+            // family rows have no 'member' column
+            $arr = (array) $row;
+            $arr['member'] = null;
+            $arr['type'] = 'family';
+            return $arr;
+        });
+
+    // Merge, sort by awarded_at (desc), take top 5
+    return $memberAchievements
+        ->merge($familyAchievements)
+        ->sortByDesc(function ($r) {
+            return $r['awarded_at'] ?? null;
+        })
+        ->take(5)
+        ->values()
+        ->all();
+}
 
 
     // total games played

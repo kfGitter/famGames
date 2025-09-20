@@ -1,131 +1,130 @@
-<?php
+<?php 
 
 namespace App\Services;
 
-use App\Models\Streak;
+use Carbon\Carbon;
 use App\Models\Family;
 use App\Models\FamilyMember;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class StreakService
 {
     /**
-     * Update both daily and weekly streaks for a single member.
+     * Core streak updater (low-level, protected).
      */
-    public function updateDailyAndWeeklyStreaks(FamilyMember $member, Carbon $date)
+    protected function updateStreak($model, string $cadence, Carbon $date)
     {
-        // Update daily streak
-        $this->updateStreak($member, 'daily', $date->toDateString());
+        $streakField     = $cadence . '_streak';
+        $lastPlayedField = 'last_' . $cadence . '_played_at';
 
-        // Update weekly streak (start of ISO week)
-        $this->updateStreak($member, 'weekly', $date->startOfWeek()->toDateString());
+        $lastPlayed = $model->$lastPlayedField ? Carbon::parse($model->$lastPlayedField) : null;
+        $played     = false;
+
+        if ($cadence === 'daily') {
+            $played = $lastPlayed?->isSameDay($date) ?? false;
+        }
+
+        if ($cadence === 'weekly') {
+            $played = $lastPlayed?->isSameWeek($date) ?? false;
+        }
+
+        if ($played) {
+            return $model; // nothing to update
+        }
+
+        // increment streak
+        $model->$streakField++;
+        $model->$lastPlayedField = $date;
+
+        $model->save();
+
+        return $model;
     }
 
     /**
-     * Update streaks for any streakable entity (member or family).
-     * Polymorphic: $streakable can be FamilyMember or Family.
+     * Check if a member has played in the cadence period.
      */
-    public function updateStreak($streakable, string $cadence, string $keyDate): Streak
+    protected function hasMemberPlayed(FamilyMember $member, string $cadence, Carbon $date): bool
     {
-        $streak = Streak::firstOrCreate([
-            'streakable_type' => get_class($streakable),
-            'streakable_id'   => $streakable->id,
-            'cadence'         => $cadence,
-        ]);
-
-        // Prevent double increment for same date/week
-        if ($streak->last_date === $keyDate) {
-            return $streak;
+        if ($cadence === 'daily') {
+            return $member->scores()->whereDate('created_at', $date)->exists();
         }
 
-        // Streak continuity check
-        $expectedPrev = null;
-        if ($streak->last_date) {
-            $prev = Carbon::parse($streak->last_date);
-            $expectedPrev = $cadence === 'daily'
-                ? $prev->addDay()->toDateString()
-                : $prev->addWeek()->startOfWeek()->toDateString();
+        if ($cadence === 'weekly') {
+            return $member->scores()->whereBetween(
+                'created_at',
+                [$date->copy()->startOfWeek(), $date->copy()->endOfWeek()]
+            )->exists();
         }
 
-        // Increment if continuous, else reset
-        if ($streak->last_date && $expectedPrev === $keyDate) {
-            $streak->count++;
-        } else {
-            $streak->count = 1;
-            $streak->started_at = $keyDate;
+        return false;
+    }
+
+    /**
+     * Update streaks for a single member.
+     */
+    public function updateMemberStreaks(FamilyMember $member, Carbon $date): array
+    {
+        $streaks = [];
+
+        foreach (['daily', 'weekly'] as $cadence) {
+            if ($this->hasMemberPlayed($member, $cadence, $date)) {
+                $this->updateStreak($member, $cadence, $date);
+            } else {
+                // reset streak if member did not play
+                $streakField = $cadence . '_streak';
+                $member->$streakField = 0;
+                $member->save();
+            }
+
+            $streaks[$cadence] = [
+                'current' => $member->{$cadence . '_streak'},
+                // removed 'best' since no column exists
+            ];
         }
 
-        $streak->best = max($streak->best, $streak->count);
-        $streak->last_date = $keyDate;
-        $streak->save();
-
-        return $streak;
+        return $streaks;
     }
 
-    public function updateFamilyWeeklyStreak(Family $family, Carbon $weekStart)
-{
-    // Check if all members played at least once this week
-    $allPlayed = $family->members->every(function($member) use ($weekStart) {
-        return $member->gameSessions()
-            ->whereBetween('game_sessions.created_at', [$weekStart->copy()->startOfWeek(), $weekStart->copy()->endOfWeek()])
-            ->exists();
-    });
+    /**
+     * Update family's daily streak: increments if at least one member played today.
+     */
+    public function updateFamilyDailyStreak(Family $family, Carbon $today): array
+    {
+        $membersPlayedToday = FamilyMember::where('family_id', $family->id)
+            ->whereDate('last_daily_played_at', $today->toDateString())
+            ->count();
 
-    if (! $allPlayed) {
-        return null; // no streak update if any member missed
+        if ($membersPlayedToday > 0 && (!$family->last_daily_played_at || !Carbon::parse($family->last_daily_played_at)->isSameDay($today))) {
+    $family->daily_streak = ($family->daily_streak ?? 0) + 1;
+    $family->last_daily_played_at = $today;
+    $family->save();
+}
+
+        return [
+            'current' => $family->daily_streak ?? 0,
+            'last_played' => $family->last_daily_played_at,
+        ];
     }
 
-    // Update family weekly streak
-    $streak = Streak::firstOrCreate([
-        'streakable_type' => Family::class,
-        'streakable_id' => $family->id,
-        'cadence' => 'weekly',
-    ]);
+    /**
+     * Update family's weekly streak: increments only if all members played at least once during the week.
+     */
+    public function updateFamilyWeeklyStreak(Family $family, Carbon $startOfWeek): array
+    {
+        $allPlayed = $family->members->every(function ($member) use ($startOfWeek) {
+            return $member->last_daily_played_at && Carbon::parse($member->last_daily_played_at)->gte($startOfWeek);
+        });
 
-    $keyDate = $weekStart->toDateString();
-
-    if ($streak->last_date === $keyDate) {
-        return $streak; // already updated this week
-    }
-
-    $expectedPrev = $streak->last_date
-        ? Carbon::parse($streak->last_date)->addWeek()->startOfWeek()->toDateString()
-        : null;
-
-    if ($expectedPrev && $expectedPrev === $keyDate) {
-        $streak->count++;
-    } else {
-        $streak->count = 1;
-        $streak->started_at = $keyDate;
-    }
-
-    $streak->best = max($streak->best, $streak->count);
-    $streak->last_date = $keyDate;
-    $streak->save();
-
-    return $streak;
+        if ($allPlayed && (!$family->last_weekly_played_at || Carbon::parse($family->last_weekly_played_at)->lt($startOfWeek))) {
+    $family->weekly_streak = ($family->weekly_streak ?? 0) + 1;
+    $family->last_weekly_played_at = now();
+    $family->save();
 }
 
 
-    /**
-     * Update all streaks for members and families.
-     * Used by UpdateStreaks command.
-     */#
-
-     
-    // public function updateAllStreaks()
-    // {
-    //     $date = now();
-
-       // Update all family members
-    //     foreach (FamilyMember::all() as $member) {
-    //         $this->updateDailyAndWeeklyStreaks($member, $date);
-    //     }
-
-         // Update all families (weekly only)
-    //     foreach (Family::all() as $family) {
-    //         $this->updateStreak($family, 'weekly', $date->startOfWeek()->toDateString());
-    //     }
-    // }
+        return [
+            'current' => $family->weekly_streak ?? 0,
+            'last_played' => $family->last_weekly_played_at,
+        ];
+    }
 }
