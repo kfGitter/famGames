@@ -7,6 +7,19 @@ import { createApp, h } from 'vue';
 import { ZiggyVue } from 'ziggy-js';
 import { initializeTheme } from './composables/useAppearance';
 
+
+import Toast, { POSITION } from 'vue-toastification';
+import 'vue-toastification/dist/index.css';
+
+
+const app = createApp({});
+app.use(Toast, {
+  position: POSITION.TOP_RIGHT,
+  timeout: 4000,
+});
+
+app.mount('#app');
+
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
@@ -23,5 +36,5 @@ createInertiaApp({
     },
 });
 
-// This will set light / dark mode on page load...
+// set light / dark mode on page load
 initializeTheme();

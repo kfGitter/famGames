@@ -10,43 +10,72 @@ use Inertia\Inertia;
 class AchievementController extends Controller
 {
     // 1) Show all family members
-    public function index()
-    {
-        $familyId = Auth::user()->family_id;
+   public function index()
+{
+    $familyId = Auth::user()->family_id;
 
-        $members = FamilyMember::where('family_id', $familyId)
-            ->select('id', 'name', 'avatar')
-            ->get();
+    $members = FamilyMember::where('family_id', $familyId)
+        ->select('id', 'name', 'avatar')
+        ->get();
 
-        return Inertia::render('Achievements/Index', [
-            'members' => $members,
-        ]);
-    }
+    // Family-wide achievements
+    $familyAchievements = Auth::user()->family?->achievements()
+        ->withPivot('awarded_at')
+        ->get(['achievements.id','achievements.code','achievements.name','achievements.icon','achievements.description'])
+        ->map(fn($a) => [
+            'id'          => $a->id,
+            'code'        => $a->code,
+            'name'        => $a->name,
+            'icon'        => $a->icon,
+            'description' => $a->description,
+            'awarded_at'  => $a->pivot->awarded_at,
+        ]) ?? collect();
+
+    return Inertia::render('Achievements/Index', [
+        'members' => $members,
+        'familyAchievements' => $familyAchievements,
+    ]);
+}
 
     // 2) Show specific member achievements
     public function show(FamilyMember $member)
-    {
-        $user = Auth::user();
-        if ($member->family_id !== $user->family_id) {
-            abort(403);
-        }
-
-        $achievements = $member->achievements()
-    ->withPivot('awarded_at')
-    ->get(['achievements.id','achievements.code','achievements.name','achievements.icon','achievements.description'])
-    ->map(fn($a) => [
-        'id'          => $a->id,
-        'code'        => $a->code,
-        'name'        => $a->name,
-        'icon'        => $a->icon,
-        'description' => $a->description,
-        'awarded_at'  => $a->pivot->awarded_at,
-    ]);
-
-
-        return Inertia::render('Achievements/Show', [
-            'member' => $member,
-            'achievements' => $achievements,
-        ]);
+{
+    $user = Auth::user();
+    if ($member->family_id !== $user->family_id) {
+        abort(403);
     }
+
+    // Member-specific achievements
+    $achievements = $member->achievements()
+        ->withPivot('awarded_at')
+        ->get(['achievements.id','achievements.code','achievements.name','achievements.icon','achievements.description'])
+        ->map(fn($a) => [
+            'id'          => $a->id,
+            'code'        => $a->code,
+            'name'        => $a->name,
+            'icon'        => $a->icon,
+            'description' => $a->description,
+            'awarded_at'  => $a->pivot->awarded_at,
+        ]);
+
+    // Family-wide achievements
+    // $familyAchievements = $member->family?->achievements()
+    //     ->withPivot('awarded_at')
+    //     ->get(['achievements.id','achievements.code','achievements.name','achievements.icon','achievements.description'])
+    //     ->map(fn($a) => [
+    //         'id'          => $a->id,
+    //         'code'        => $a->code,
+    //         'name'        => $a->name,
+    //         'icon'        => $a->icon,
+    //         'description' => $a->description,
+    //         'awarded_at'  => $a->pivot->awarded_at,
+    //     ]) ?? collect();
+
+    return Inertia::render('Achievements/Show', [
+        'member' => $member,
+        'achievements' => $achievements,
+        // 'familyAchievements' => $familyAchievements,
+    ]);
+}
+
 }

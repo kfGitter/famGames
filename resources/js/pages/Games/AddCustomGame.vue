@@ -1,7 +1,8 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
-
+import AppLayout from '@/layouts/AppLayout.vue';
+import { useToast } from 'vue-toastification';
 
 const form = useForm({
     title: '',
@@ -9,7 +10,8 @@ const form = useForm({
     rules: '',
     min_players: '',
     max_players: '',
-    category: '',
+    // category: '',
+    scoring: '', // New field for scoring
     custom: true, // important: tells backend it’s a custom game
     tags: [], // New field for tags
 });
@@ -20,16 +22,27 @@ const props = defineProps(['tags']);
 const allTags = ref([]);
 allTags.value = props.tags;
 
+
+const toast = useToast();
+
 function submit() {
     form.post('/my-games', {
         onSuccess: () => {
-            form.reset();
+            toast.success('Custom game created! Redirecting to My Games...');
+            setTimeout(() => {
+            window.location.href = `/my-games`;
+            }, 1600);
         },
+        onError: () => {
+            toast.error('Oops! There was a problem creating your game.');
+        }
     });
 }
+
 </script>
 
 <template>
+    <AppLayout>
     <div class="mx-auto max-w-xl">
         <h1 class="mb-4 text-2xl font-bold">Add a Custom Game</h1>
 
@@ -62,6 +75,13 @@ function submit() {
                 <textarea v-model="form.rules" class="w-full rounded border p-2"></textarea>
             </div>
 
+            
+            <div>
+                <label class="block font-medium">Scoring</label>
+                <input v-model="form.scoring" class="w-full rounded border p-2" />
+            </div>
+
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block font-medium">Min Players</label>
@@ -73,14 +93,11 @@ function submit() {
                 </div>
             </div>
 
-            <div>
-                <label class="block font-medium">Category</label>
-                <input v-model="form.category" class="w-full rounded border p-2" />
-            </div>
 
             <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700" :disabled="form.processing">Save Game</button>
 
             <Link href="/my-games" class="ml-2 text-gray-600 hover:underline"> Cancel </Link>
         </form>
     </div>
+    </AppLayout>
 </template>

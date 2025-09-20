@@ -3,6 +3,9 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
+import { useToast } from 'vue-toastification';
+
+const toast = useToast();
 
 
 const props = defineProps<{
@@ -21,7 +24,16 @@ function saveResults() {
   // POST to the exact URL defined in routes/web.php
   router.post(route('game.session.scores.save', props.gameSession.id), {
     scores: scores.value
-  });
+  },
+    {
+      onSuccess: () => {
+        toast.success('✅ Scores saved successfully!', { timeout: 1500 });
+        setTimeout(() => router.get('/dashboard'), 1600);
+      },
+      onError: () => {
+        toast.error('❌ Failed to save scores. Try again.');
+      },
+    });
 }
 </script>
 

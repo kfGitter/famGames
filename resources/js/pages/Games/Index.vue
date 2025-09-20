@@ -2,6 +2,9 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { useForm } from '@inertiajs/vue3';
 import { computed, defineProps, ref } from 'vue';
+import { useToast } from 'vue-toastification';
+
+const toast = useToast();
 
 const form = useForm({});
 
@@ -20,6 +23,7 @@ function viewGame(game) {
 async function addToMyGames(game: Game) {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
 
+    try {
     await fetch('/my-games', {
         method: 'POST',
         headers: {
@@ -30,7 +34,10 @@ async function addToMyGames(game: Game) {
         body: JSON.stringify({ game_id: game.id }),
     });
 
-    alert(`Added ${game.title} to your MyGames!`);
+toast.success(` ${game.title} added to MyGames!`, { timeout: 1500 });
+    } catch {
+        toast.error(`Failed to add ${game.title}. Try again.`);
+}
 }
 
 // Define props at top level

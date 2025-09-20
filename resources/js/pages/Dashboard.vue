@@ -214,8 +214,31 @@ function achievementIcon(icon: string | null | undefined) {
                             </div>
                         </div>
                     </div>
-
                     <p v-else class="text-sm text-gray-500 dark:text-gray-400">No achievements yet. Start playing to earn some!</p>
+
+                    <!-- Family Challenges -->
+                    <div class="mt-8 rounded-xl bg-white p-6 shadow-md dark:bg-gray-900">
+                        <h3 class="mb-4 text-xl font-bold text-black dark:text-white">Family Challenges 🎯</h3>
+
+                        <div class="space-y-3">
+                            <div class="rounded border border-blue-200 bg-blue-50 p-4 dark:border-blue-700 dark:bg-blue-900">
+                                <p class="font-semibold text-blue-800 dark:text-blue-300">🔥 Daily Challenge:</p>
+                                <p class="text-sm text-gray-700 dark:text-gray-300">Play at least 1 game today to keep your streak alive!</p>
+                            </div>
+
+                            <div class="rounded border border-green-200 bg-green-50 p-4 dark:border-green-700 dark:bg-green-900">
+                                <p class="font-semibold text-green-800 dark:text-green-300">🌟 Weekly Challenge:</p>
+                                <p class="text-sm text-gray-700 dark:text-gray-300">Complete 5 games this week as a family to earn bonus points!</p>
+                            </div>
+
+                            <div class="rounded border border-purple-200 bg-purple-50 p-4 dark:border-purple-700 dark:bg-purple-900">
+                                <p class="font-semibold text-purple-800 dark:text-purple-300">🎁 Hidden Challenge:</p>
+                                <p class="text-sm text-gray-700 dark:text-gray-300">
+                                    Try a new game from the library this week and unlock a surprise reward!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </AppLayout>

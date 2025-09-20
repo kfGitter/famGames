@@ -20,7 +20,7 @@ class TagSeeder extends Seeder
             'Parents vs Kids',
             'Card Game',
             'Board Game',
-            'Active / Physical',
+            'Active Game',
             'Word Game',
             'Competitive',
             'Trivia & Quiz',
@@ -35,3 +35,4 @@ class TagSeeder extends Seeder
         }
     }
 }
+
