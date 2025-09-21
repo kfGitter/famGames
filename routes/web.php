@@ -21,8 +21,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\LeaderboardsController;
 use App\Http\Controllers\AchievementController;
 use App\Http\Controllers\DashboardController;
-
-
+use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
 Route::middleware(['auth'])->group(function () {
     // Dashboard
@@ -104,7 +103,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::post('/user/avatar', [UserController::class, 'updateAvatar'])->name('user.avatar');
+    Route::get('/challenges/manage', [DashboardController::class, 'manage'])->name('challenges.manage');
+    Route::post('/challenges', [DashboardController::class, 'store'])->name('challenges.store');
+    Route::post('/challenges/activate', [DashboardController::class, 'activate'])->name('challenges.activate');
+Route::delete('/challenges/{familyChallenge}', [DashboardController::class, 'deactivate'])->name('challenges.deactivate');
+
 });
+
+
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

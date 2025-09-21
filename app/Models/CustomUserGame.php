@@ -18,7 +18,7 @@ class CustomUserGame extends Model
         'rules',
         'min_players',
         'max_players',
-        'category',
+        'scoring',
         'is_favorite',
     ];
 

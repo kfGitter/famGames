@@ -46,5 +46,11 @@ public function awardAchievementToFamily(string $code): void
     }
 }
 
+public function challenges()
+{
+    return $this->hasMany(\App\Models\FamilyChallenge::class);
+}
+
+
 
 }

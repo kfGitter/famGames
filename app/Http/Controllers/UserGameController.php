@@ -35,7 +35,9 @@ class UserGameController extends Controller
 
         $games = $systemGames->concat($customGames);
 
-        return inertia('Games/MyGames', ['games' => $games]);
+        $members = auth()->user()->family?->members ?? [];
+
+        return inertia('Games/MyGames', ['games' => $games, 'members' => $members]);
     }
 
 

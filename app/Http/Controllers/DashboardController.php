@@ -7,115 +7,181 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use App\Models\GameSession;
 use App\Models\FamilyMember;
-use App\Models\CustomUserGame;
+use Carbon\Carbon;
+use App\Models\FamilyChallenge;
+use App\Models\Challenge;
+use Illuminate\Support\Facades\Auth;
+                use Illuminate\Support\Collection;
 
 class DashboardController extends Controller
 {
+    
     public function __invoke(Request $request)
     {
         $user = $request->user();
-        $familyId = $user->family_id;        // requires users.family_id (you have User::family())
-        $windowDays = 30;                     // rolling window for “participation” + “most active”
-
-
-        // Streaks
-        $family = $user->family;
+        $familyId = $user->family_id;
+        $windowDays = 7;
 
         $familyDailyStreak = null;
         $familyWeeklyStreak = null;
 
-        if ($family) {
-            $today = \Carbon\Carbon::today();
+        if ($family = $user->family) {
+            $today = Carbon::today();
             $streakService = app(\App\Services\StreakService::class);
-
-            // Use newly created public methods
-
             $familyDailyStreak = $streakService->updateFamilyDailyStreak($family, $today);
             $familyWeeklyStreak = $streakService->updateFamilyWeeklyStreak($family, $today->startOfWeek());
         }
 
+        // --- Challenges ---
+        $challenges = [];
+        $activeChallenges = [];
+
+        if ($familyId) {
+            // Load all challenges linked to family
+            $challenges = FamilyChallenge::with('challenge')
+                ->where('family_id', $familyId)
+                ->orderByRaw("
+                    CASE type
+                        WHEN 'daily' THEN 1
+                        WHEN 'weekly' THEN 2
+                        WHEN 'hidden' THEN 3
+                        ELSE 4
+                    END
+                ")
+                ->get();
+
+            // Active challenges: not completed
+            $activeChallenges = $challenges->where('completed', false);
+
+            // If none exist, create from templates
+            if ($activeChallenges->isEmpty()) {
+                foreach (Challenge::all() as $template) {
+                    FamilyChallenge::updateOrCreate(
+                        [
+                            'family_id'    => $familyId,
+                            'challenge_id' => $template->id
+                        ],
+                        [
+                            'title'       => $template->title,
+                            'type'        => $template->type,
+                            'description' => $template->description,
+                            'goal'        => $template->goal ?? 1,
+                            'progress'    => 0,
+                            'completed'   => false,
+                        ]
+                    );
+                }
+
+                // Reload challenges after creation
+                $challenges = FamilyChallenge::with('challenge')
+                    ->where('family_id', $familyId)
+                    ->orderByRaw("
+                        CASE type
+                            WHEN 'daily' THEN 1
+                            WHEN 'weekly' THEN 2
+                            WHEN 'hidden' THEN 3
+                            ELSE 4
+                        END
+                    ")
+                    ->get();
+            }
+        }
+
+        // --- History for activity chart ---
+        $weeks = [];
+        for ($i = 7; $i >= 0; $i--) {
+            $start = Carbon::now()->startOfWeek()->subWeeks($i);
+            $end = (clone $start)->endOfWeek();
+            $label = $start->format('MMM d');
+            $count = GameSession::where('family_id', $familyId)
+                ->whereBetween('created_at', [$start, $end])
+                ->count();
+            $weeks[] = ['label' => $label, 'value' => $count];
+        }
 
         return Inertia::render('Dashboard', [
             'auth' => [
                 'user' => $user->only(['id', 'name', 'email', 'family_name', 'avatar']),
             ],
             'stats' => [
-                'gamesPlayed'       => $this->gamesPlayed($familyId),
-                'bestScore'         => $this->bestScore($familyId),             // ['member'=>..., 'score'=>...]
-                'participationRate' => $this->participationRate($familyId, $windowDays), // integer %
-                'mostActive'        => $this->mostActive($familyId, $windowDays),        // string|null
-                'window'            => [
+                'gamesPlayed'      => $this->gamesPlayed($familyId),
+                'bestScore'        => $this->bestScore($familyId),
+                'participationRate'=> $this->participationRate($familyId, $windowDays),
+                'mostActive'       => $this->mostActive($familyId, $windowDays),
+                'window'           => [
                     'days' => $windowDays,
                     'from' => now()->subDays($windowDays)->toDateString(),
                     'to'   => now()->toDateString(),
                 ],
             ],
-            'favoriteGames' => $this->favoriteGames($user->id), // array of up to 3 favorites (system + custom)
-
-            'streaks' => [
-                'family_daily' => $familyDailyStreak,
+            'favoriteGames'     => $this->favoriteGames($user->id),
+            'streaks'           => [
+                'family_daily'  => $familyDailyStreak,
                 'family_weekly' => $familyWeeklyStreak,
             ],
-            'latestAchievements' => $this->latestAchievements($familyId),
+            'latestAchievements'=> $this->latestAchievements($familyId),
+            'challenges'        => $challenges,
+            'activeChallenges'  => $challenges,
 
+            'history'           => $weeks,
         ]);
     }
 
 
     private function latestAchievements(?int $familyId): array
-{
-    if (!$familyId) {
-        return [];
+    {
+        if (!$familyId) {
+            return [];
+        }
+
+        // Member achievements
+        $memberAchievements = DB::table('family_member_achievements')
+            ->join('achievements', 'family_member_achievements.achievement_id', '=', 'achievements.id')
+            ->join('family_members', 'family_member_achievements.family_member_id', '=', 'family_members.id')
+            ->where('family_members.family_id', $familyId)
+            ->select(
+                'achievements.id',
+                'achievements.name',
+                'achievements.icon',
+                'achievements.description',
+                'family_member_achievements.awarded_at',
+                'family_members.name as member'
+            )
+            ->get()
+            ->map(function ($row) {
+                return (array) $row + ['type' => 'member'];
+            });
+
+        // Family achievements
+        $familyAchievements = DB::table('family_achievements')
+            ->join('achievements', 'family_achievements.achievement_id', '=', 'achievements.id')
+            ->where('family_achievements.family_id', $familyId)
+            ->select(
+                'achievements.id',
+                'achievements.name',
+                'achievements.icon',
+                'achievements.description',
+                'family_achievements.awarded_at'
+            )
+            ->get()
+            ->map(function ($row) {
+                // family rows have no 'member' column
+                $arr = (array) $row;
+                $arr['member'] = null;
+                $arr['type'] = 'family';
+                return $arr;
+            });
+
+        // Merge, sort by awarded_at (desc), take top 3
+        return $memberAchievements
+            ->merge($familyAchievements)
+            ->sortByDesc(function ($r) {
+                return $r['awarded_at'] ?? null;
+            })
+            ->take(3)
+            ->values()
+            ->all();
     }
-
-    // Member achievements
-    $memberAchievements = DB::table('family_member_achievements')
-        ->join('achievements', 'family_member_achievements.achievement_id', '=', 'achievements.id')
-        ->join('family_members', 'family_member_achievements.family_member_id', '=', 'family_members.id')
-        ->where('family_members.family_id', $familyId)
-        ->select(
-            'achievements.id',
-            'achievements.name',
-            'achievements.icon',
-            'achievements.description',
-            'family_member_achievements.awarded_at',
-            'family_members.name as member'
-        )
-        ->get()
-        ->map(function ($row) {
-            return (array) $row + ['type' => 'member'];
-        });
-
-    // Family achievements
-    $familyAchievements = DB::table('family_achievements')
-        ->join('achievements', 'family_achievements.achievement_id', '=', 'achievements.id')
-        ->where('family_achievements.family_id', $familyId)
-        ->select(
-            'achievements.id',
-            'achievements.name',
-            'achievements.icon',
-            'achievements.description',
-            'family_achievements.awarded_at'
-        )
-        ->get()
-        ->map(function ($row) {
-            // family rows have no 'member' column
-            $arr = (array) $row;
-            $arr['member'] = null;
-            $arr['type'] = 'family';
-            return $arr;
-        });
-
-    // Merge, sort by awarded_at (desc), take top 5
-    return $memberAchievements
-        ->merge($familyAchievements)
-        ->sortByDesc(function ($r) {
-            return $r['awarded_at'] ?? null;
-        })
-        ->take(5)
-        ->values()
-        ->all();
-}
 
 
     // total games played
@@ -218,4 +284,20 @@ class DashboardController extends Controller
 
         return $system->merge($custom)->take(3)->values()->all();
     }
+
+
+public function manage()
+    {
+        $familyId = Auth::user()->family_id;
+
+        return Inertia::render('Challenges/Manage', [
+            'templates' => Challenge::select('id', 'title', 'type', 'description')->get(),
+            'activeChallenges' => FamilyChallenge::with('challenge')
+                ->where('family_id', $familyId)
+                ->get(),
+        ]);
+    }
+
+
+
 }

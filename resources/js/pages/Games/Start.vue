@@ -1,24 +1,38 @@
-<script setup>
+<script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const props = defineProps({
-    game: Object,
-    members: Array,
+    game: {
+        type: Object,
+        required: true,
+        default: () => ({ min_player: 2, title: 'Untitled Game' }),
+    },
+    members: {
+        type: Array,
+        default: () => [],
+    },
 });
 
-const selectedPlayers = ref([]);
+const selectedPlayers = ref<number[]>([]);
 
-function togglePlayer(id) {
+function togglePlayer(id: number) {
     if (selectedPlayers.value.includes(id)) {
-        selectedPlayers.value = selectedPlayers.value.filter((pid) => pid !== id);
+        selectedPlayers.value = selectedPlayers.value.filter(pid => pid !== id);
     } else {
         selectedPlayers.value.push(id);
     }
 }
 
 function startGame() {
+    const minPlayers = props.game?.min_player || 2;
+
+    if (selectedPlayers.value.length < minPlayers) {
+        alert(`⚠️ This game requires at least ${minPlayers} players.`);
+        return;
+    }
+
     router.post(`/start-game/${props.game.id}`, {
         players: selectedPlayers.value,
     });
@@ -26,24 +40,37 @@ function startGame() {
 </script>
 
 <template>
-    <AppLayout>
-    <div class="p-6">
-        <h1 class="mb-4 text-2xl font-bold">START NEW GAME</h1>
+  <AppLayout>
+ <div class="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+      <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6 space-y-6">        <h1 class="text-2xl font-bold text-gray-900">Start New Game</h1>
 
-        <div class="mb-4">
-            <label class="mb-2 block font-semibold">Game:</label>
-            <div class="rounded border bg-gray-100 p-2">{{ props.game.title }}</div>
-        </div>
-
-        <div class="mb-4">
-            <label class="mb-2 block font-semibold">Select Players:</label>
-            <div v-for="member in members" :key="member.id" class="mb-1 flex items-center gap-2">
-                <input type="checkbox" :value="member.id" v-model="selectedPlayers" />
-                <span>{{ member.name }}</span>
+        <!-- Game Info -->
+        <div>
+            <label class="mb-1 block font-semibold text-gray-700">Game:</label>
+            <div class="rounded border border-gray-300 bg-gray-100 p-2 text-gray-800">
+                {{ props.game.title }}
             </div>
         </div>
 
-        <button @click="startGame" class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">Start Game</button>
+        <!-- Player Selection -->
+        <div>
+            <label class="mb-2 block font-semibold text-gray-700">Select Players:</label>
+            <div class="space-y-2 max-h-60 overflow-y-auto">
+                <div v-for="member in members" :key="member.id" class="flex items-center gap-2">
+                    <input type="checkbox" :value="member.id" v-model="selectedPlayers" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
+                    <span class="text-gray-800">{{ member.name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <button
+            @click="startGame"
+            class="w-full rounded-lg bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 shadow-sm transition"
+        >
+            Start Game
+        </button>
     </div>
-    </AppLayout>
+    </div>
+  </AppLayout>
 </template>

@@ -12,7 +12,7 @@ class AchievementSeeder extends Seeder
     {
         $achievements = [
 
-            // 👤 MEMBER ACHIEVEMENTS
+            // MEMBER ACHIEVEMENTS
             [
                 'code' => 'active_player',
                 'name' => 'Active Player ⚡',
@@ -54,7 +54,7 @@ class AchievementSeeder extends Seeder
                 'description' => 'Played 5 sessions after 10pm.',
             ],
 
-            // 🔥 MEMBER STREAKS
+            // Member Streaks
             [
                 'code' => 'streak_boss',
                 'name' => ' Streak Boss 🥉',
@@ -63,7 +63,7 @@ class AchievementSeeder extends Seeder
             [
                 'code' => 'daily_streak_master',
                 'name' => 'Daily Streak Master 🌞',
-                'description' => 'Played every day for 3 consecutive days.',
+                'description' => 'Played every day for a week.',
             ],
             [
                 'code' => 'weekly_streak_master',
@@ -71,7 +71,7 @@ class AchievementSeeder extends Seeder
                 'description' => 'Played every week for a month.',
             ],
 
-            // 🏆 Per-Game Win Milestones
+            // Per-Game Win Milestones
             [
                 'code' => 'game_boss_5',
                 'name' => 'Game Boss 🎮',
@@ -88,7 +88,7 @@ class AchievementSeeder extends Seeder
                 'description' => 'Won the same game 20 times.',
             ],
 
-            // 🏆 Overall Wins (any games)
+            // Overall Wins (any games)
             [
                 'code' => 'winner_boss_5',
                 'name' => 'Winner Boss 🏆',
@@ -105,14 +105,14 @@ class AchievementSeeder extends Seeder
                 'description' => 'Won 20 games in total.',
             ],
 
-            // 👤 Member engagement
+            // Member engagement
             [
                 'code' => 'active_champ',
                 'name' => 'Participation Champ 🏅',
                 'description' => 'Most active member across the last 3 sessions.',
             ],
 
-            // 👨‍👩‍👧‍👦 FAMILY ACHIEVEMENTS
+            // FAMILY ACHIEVEMENTS
             [
                 'code' => 'family_favorite',
                 'name' => 'Family Favorite 🎯',

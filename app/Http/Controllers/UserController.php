@@ -8,25 +8,20 @@ use Illuminate\Support\Facades\Auth;
 class UserController extends Controller
 {
     public function updateAvatar(Request $request)
-    {
-        $request->validate([
-            'avatar' => ['required', 'image', 'max:2048'], // 2MB max
-        ]);
+{
+    $request->validate([
+        'avatar' => ['required', 'image', 'max:2048'],
+    ]);
 
-        $user = Auth::user();
+    $user = Auth::user();
 
-        // Store in public storage
-        $path = $request->file('avatar')->store('avatars', 'public');
+    $path = $request->file('avatar')->store('avatars', 'public');
 
-        // Save path in DB
-        
-        $user = Auth::user();
-        $user = \App\Models\User::find($user->id); // ensures Eloquent model
+    
+    $user->avatar = $path;
+    $user->save();
 
+    return redirect()->back()->with('success', 'Avatar updated!');
+}
 
-        $user->avatar = $path;
-        $user->save();
-
-        return back()->with('success', 'Avatar updated!');
-    }
 }

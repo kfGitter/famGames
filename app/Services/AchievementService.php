@@ -13,8 +13,12 @@ class AchievementService
      */
     public function evaluateAfterSession(GameSession $session): void
     {
+        $familyChallengeService = app(\App\Services\FamilyChallengeService::class);
+
         $this->checkMemberAchievements($session);
         $this->checkFamilyAchievements($session);
+        $familyChallengeService->updateProgressAfterSession($session->family, $session);
+
     }
 
     // ------------------------------------------------
@@ -204,23 +208,25 @@ class AchievementService
         if ($totalWins >= 20) FamilyMember::find($winnerId)?->awardAchievement('winner_expert_20');
     }
 
-    private function checkActiveChamp(GameSession $session): void
-    {
-        $last3Sessions = GameSession::where('family_id', $session->family_id)
-            ->orderByDesc('id')
-            ->limit(3)
-            ->pluck('id');
 
-        $activity = GameScore::whereIn('game_session_id', $last3Sessions)
-            ->select('family_member_id', DB::raw('COUNT(*) as plays'))
-            ->groupBy('family_member_id')
-            ->orderByDesc('plays')
-            ->first();
+private function checkActiveChamp(GameSession $session): void
+{
+    $last3Sessions = GameSession::where('family_id', $session->family_id)
+        ->orderByDesc('id')
+        ->limit(3)
+        ->pluck('id');
 
-        if ($activity) {
-            FamilyMember::find($activity->family_member_id)?->awardAchievement('active_champ');
-        }
+    $activity = GameScore::whereIn('game_session_id', $last3Sessions)
+        ->select('family_member_id', DB::raw('COUNT(*) as plays'))
+        ->groupBy('family_member_id')
+        ->orderByDesc('plays')
+        ->first();
+
+    if ($activity && $activity->plays >= 3) {
+        FamilyMember::find($activity->family_member_id)?->awardAchievement('active_champ');
     }
+}
+
 
     // ------------------------------------------------
     // 👨‍👩‍👧‍👦 FAMILY ACHIEVEMENTS

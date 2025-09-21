@@ -25,4 +25,14 @@ class Kernel extends ConsoleKernel
 
         require base_path('routes/console.php');
     }
+
+    protected function schedule(Schedule $schedule): void
+{
+    // Daily reminder
+    $schedule->command('reminders:send daily')->dailyAt('09:00');
+
+    // Weekly reminder (e.g., every Sunday morning)
+    $schedule->command('reminders:send weekly')->sundays()->at('10:00');
+}
+
 }
