@@ -16,6 +16,7 @@ function goToMember(memberId: number) {
   <AppLayout>
     <div class="space-y-8 p-6 text-gray-900 dark:text-gray-100">
       <h1 class="text-3xl font-bold">Family Achievements ✨</h1>
+      
       <!-- Family Members -->
       <section>
         <h2 class="text-xl font-semibold mb-4 flex items-center gap-2"> Family Members</h2>

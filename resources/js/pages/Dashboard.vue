@@ -7,7 +7,6 @@ import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 const page = usePage();
-// const user = computed(() => (page.props as any).auth.user);
 const user = computed(() => (page.props as any).auth.user as { id: number; name: string; family_name?: string; avatar?: string });
 const stats = computed(() => (page.props as any).stats);
 const favoriteGames = computed(() => (page.props as any).favoriteGames ?? []);
@@ -22,6 +21,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' 
 const selectedImage = ref<string | null>(null);
 const file = ref<File | null>(null);
 
+// Handle profile picture change
 function onFileChange(e: Event) {
     const target = e.target as HTMLInputElement;
     const chosen = target.files?.[0];
@@ -35,13 +35,11 @@ function onFileChange(e: Event) {
         router.post('/user/avatar', formData, {
             preserveScroll: true,
             onSuccess: () => {
-                // Refresh user props from backend (so avatar persists)
                 router.reload({ only: ['auth'] });
             },
         });
     }
 }
-
 
 function startGame(game: { type: string; id: number }) {
     window.location.href = `/start-game/${game.id}/${game.type}`;
@@ -53,14 +51,14 @@ function startGame(game: { type: string; id: number }) {
         <Head title="Dashboard" />
         <AppLayout :breadcrumbs="breadcrumbs">
             <div class="flex flex-col gap-6">
-                <!-- Central Block -->
+                <!-- Central/Welcome Block -->
                 <div class="rounded-xl bg-white p-6 shadow-md dark:bg-gray-900">
                     <div class="mb-6 flex items-center justify-between">
                         <div>
                             <h2 class="text-2xl font-bold text-black dark:text-white">{{ user.family_name || 'Your Family' }}</h2>
                             <p class="text-gray-500 dark:text-gray-300">Welcome back, {{ user.name }}!</p>
                         </div>
-                        <!-- Avatar Upload -->
+                        <!-- PP Upload -->
                         <div class="flex flex-col items-center">
                             <img
                                 :src="selectedImage || (user.avatar ? '/storage/' + user.avatar : '/penguins.jpg')"
@@ -111,7 +109,7 @@ function startGame(game: { type: string; id: number }) {
                             <div class="flex items-center gap-3">
                                 <span class="text-yellow-400">★</span>
                                 <span class="text-black dark:text-white">{{ g.name }}</span>
-                                <span class="text-xs opacity-60">({{ g.type }})</span>
+                                <!-- <span class="text-xs opacity-60">({{ g.type }})</span> -->
                             </div>
                             <button @click="startGame(g)" class="rounded bg-blue-600 px-4 py-1 text-white hover:bg-blue-700">Start Game</button>
                         </div>
@@ -133,10 +131,12 @@ function startGame(game: { type: string; id: number }) {
                         >
                             <span>🏆</span>
                             <div>
+                                <!-- Family and Members -->
                                 <p class="font-semibold text-black dark:text-white">
                                     <template v-if="a.type === 'family'">
-                                        🎉 Family unlocked <span class="text-blue-600">{{ a.name }}</span>
+                                        🎉Together you unlocked <span class="text-blue-600">{{ a.name }} </span>
                                     </template>
+
                                     <template v-else>
                                         {{ a.member }} earned <span class="text-blue-600">{{ a.name }}</span>
                                     </template>
@@ -184,7 +184,7 @@ function startGame(game: { type: string; id: number }) {
 
                 <div class="rounded-xl bg-white p-6 shadow-md dark:bg-gray-900">
                     <div class="mt-6">
-                        <h3 class="mb-4 text-xl font-bold text-black dark:text-white">Family Activity (over 3 weeks)</h3>
+                        <h3 class="mb-4 text-xl font-bold text-black dark:text-white">Family Activity (over 2 weeks)</h3>
                         <ActivityChart :data="history" />
                     </div>
                 </div>

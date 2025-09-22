@@ -27,8 +27,7 @@ const goBack = () => {
 <template>
     <div class="flex min-h-screen items-center justify-center bg-gray-50 p-6">
         <div class="w-full max-w-md space-y-6 rounded-xl bg-white p-6 shadow-lg">
-           
-          <!-- Back Button -->
+            <!-- Back Button -->
             <div class="mb-4 text-left">
                 <Button @click="goBack" class="bg-gray-300 text-black shadow-sm hover:bg-gray-400"> ← Back </Button>
             </div>
@@ -56,17 +55,9 @@ const goBack = () => {
 
             <!-- Player Range -->
             <div v-if="game.min_players || game.max_players" class="mb-6">
-                <h2 class="mb-2 text-xl font-semibold text-gray-800">Players</h2>
+                <h2 class="mb-2 text-xl font-semibold text-gray-800">Recommended Number of Players</h2>
                 <p class="text-gray-700">{{ game.min_players ?? '?' }} - {{ game.max_players ?? '?' }} players</p>
             </div>
-
-            <!-- Add to My Games Button -->
-            <!-- Uncomment if needed -->
-            <!--
-    <div class="mt-6">
-      <Button @click="addToMyGames" class="bg-green-600 text-white hover:bg-green-700 shadow-sm"> Add to My Games </Button>
-    </div>
-    -->
         </div>
     </div>
 </template>

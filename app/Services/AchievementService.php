@@ -18,11 +18,10 @@ class AchievementService
         $this->checkMemberAchievements($session);
         $this->checkFamilyAchievements($session);
         $familyChallengeService->updateProgressAfterSession($session->family, $session);
-
     }
 
     // ------------------------------------------------
-    // 👤 MEMBER ACHIEVEMENTS
+    //  MEMBER ACHIEVEMENTS
     // ------------------------------------------------
     private function checkMemberAchievements(GameSession $session): void
     {
@@ -30,7 +29,11 @@ class AchievementService
         $this->checkStreaks($session);
         $this->checkOverallChamp($session);
         $this->checkVersatility($session);
+
+        $this->checkFierceNewbie($session);
         $this->checkNewbieSlayer($session);
+
+
         $this->checkComebackKid($session);
         $this->checkEarlyBird($session);
         $this->checkNightOwl($session);
@@ -39,14 +42,17 @@ class AchievementService
         $this->checkActiveChamp($session);
     }
 
+
     private function checkActivePlayer(GameSession $session): void
     {
-        foreach ($this->memberIds($session) as $mid) {
-            $plays = GameScore::where('family_id', $session->family_id)
-                ->where('family_member_id', $mid)
-                ->count();
+        $plays = GameScore::where('family_id', $session->family_id)
+            ->select('family_member_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('family_member_id')
+            ->get()
+            ->pluck('total', 'family_member_id');
 
-            if ($plays >= 10) {
+        foreach ($plays as $mid => $count) {
+            if ($count >= 10) {
                 FamilyMember::find($mid)?->awardAchievement('active_player');
             }
         }
@@ -71,7 +77,7 @@ class AchievementService
             FamilyMember::find($winnerId)?->awardAchievement('triple_winner');
         }
 
-        // Daily & weekly streaks
+        // Streak service (daily / weekly)
         $member = FamilyMember::find($winnerId);
         if ($member) {
             $streaks = $streakService->updateMemberStreaks($member, Carbon::today());
@@ -90,12 +96,13 @@ class AchievementService
 
     private function checkOverallChamp(GameSession $session): void
     {
-        foreach ($this->memberIds($session) as $mid) {
-            $total = GameScore::where('family_id', $session->family_id)
-                ->where('family_member_id', $mid)
-                ->sum('score');
+        $totals = GameScore::where('family_id', $session->family_id)
+            ->select('family_member_id', DB::raw('SUM(score) as total'))
+            ->groupBy('family_member_id')
+            ->pluck('total', 'family_member_id');
 
-            if ($total >= 500) {
+        foreach ($totals as $mid => $score) {
+            if ($score >= 500) {
                 FamilyMember::find($mid)?->awardAchievement('overall_champ');
             }
         }
@@ -106,19 +113,21 @@ class AchievementService
         $totalGames = Game::count();
         if ($totalGames === 0) return;
 
-        foreach ($this->memberIds($session) as $mid) {
-            $distinctGames = GameScore::join('game_sessions', 'game_scores.game_session_id', '=', 'game_sessions.id')
-                ->where('game_scores.family_id', $session->family_id)
-                ->where('game_scores.family_member_id', $mid)
-                ->distinct('game_sessions.game_id')
-                ->count('game_sessions.game_id');
+        $plays = GameScore::join('game_sessions', 'game_scores.game_session_id', '=', 'game_sessions.id')
+            ->where('game_scores.family_id', $session->family_id)
+            ->select('family_member_id', DB::raw('COUNT(DISTINCT game_sessions.game_id) as distinct_games'))
+            ->groupBy('family_member_id')
+            ->pluck('distinct_games', 'family_member_id');
 
-            if ($distinctGames === $totalGames) {
+        foreach ($plays as $mid => $count) {
+            if ($count === $totalGames) {
                 FamilyMember::find($mid)?->awardAchievement('versatility_badge');
             }
         }
     }
 
+    // Newbie Achievements (has no more than 1 play)
+    // (make a helper to check newbie after)
     private function checkNewbieSlayer(GameSession $session): void
     {
         if (!$session->winner_family_member_id) return;
@@ -134,6 +143,22 @@ class AchievementService
         }
     }
 
+    private function checkFierceNewbie(GameSession $session): void
+    {
+        if (!$session->winner_family_member_id) return;
+
+        $winnerId = $session->winner_family_member_id;
+
+        $totalPlays = GameScore::where('family_id', $session->family_id)
+            ->where('family_member_id', $winnerId)
+            ->count();
+
+        if ($totalPlays <= 1) {
+            FamilyMember::find($winnerId)?->awardAchievement('fierce_newbie');
+        }
+    }
+
+
     private function checkComebackKid(GameSession $session): void
     {
         if (!$session->winner_family_member_id) return;
@@ -143,20 +168,31 @@ class AchievementService
             ->orderByDesc('id')
             ->first();
 
-        if ($previous && $previous->winner_family_member_id !== $session->winner_family_member_id) {
+        if (!$previous) return;
+
+        // last place in previous session
+        $lowestScore = GameScore::where('game_session_id', $previous->id)->min('score');
+        $lastPlaceIds = GameScore::where('game_session_id', $previous->id)
+            ->where('score', $lowestScore)
+            ->pluck('family_member_id');
+
+        if ($lastPlaceIds->contains($session->winner_family_member_id)) {
             FamilyMember::find($session->winner_family_member_id)?->awardAchievement('comeback_kid');
         }
     }
 
+    // Timely Achievements (checked at least 3 times)
     private function checkEarlyBird(GameSession $session): void
     {
-        foreach ($this->memberIds($session) as $mid) {
-            $before10 = GameSession::join('game_scores', 'game_sessions.id', '=', 'game_scores.game_session_id')
-                ->where('game_scores.family_member_id', $mid)
-                ->whereTime('game_sessions.created_at', '<', '10:00:00')
-                ->count();
+        $plays = GameSession::join('game_scores', 'game_sessions.id', '=', 'game_scores.game_session_id')
+            ->where('game_sessions.family_id', $session->family_id)
+            ->whereTime('game_sessions.created_at', '<', '10:00:00')
+            ->select('game_scores.family_member_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('game_scores.family_member_id')
+            ->pluck('total', 'game_scores.family_member_id');
 
-            if ($before10 >= 3) {
+        foreach ($plays as $mid => $count) {
+            if ($count >= 3) {
                 FamilyMember::find($mid)?->awardAchievement('early_bird');
             }
         }
@@ -164,33 +200,34 @@ class AchievementService
 
     private function checkNightOwl(GameSession $session): void
     {
-        foreach ($this->memberIds($session) as $mid) {
-            $after10pm = GameSession::join('game_scores', 'game_sessions.id', '=', 'game_scores.game_session_id')
-                ->where('game_scores.family_member_id', $mid)
-                ->where('game_scores.family_id', $session->family_id)
-                ->whereTime('game_sessions.created_at', '>=', '22:00:00')
-                ->count();
+        $plays = GameSession::join('game_scores', 'game_sessions.id', '=', 'game_scores.game_session_id')
+            ->where('game_sessions.family_id', $session->family_id)
+            ->whereTime('game_sessions.created_at', '>=', '22:00:00')
+            ->select('game_scores.family_member_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('game_scores.family_member_id')
+            ->pluck('total', 'game_scores.family_member_id');
 
-            if ($after10pm >= 3) {
+        foreach ($plays as $mid => $count) {
+            if ($count >= 3) {
                 FamilyMember::find($mid)?->awardAchievement('night_owl');
             }
         }
     }
 
+    // Win Milestones
     private function checkPerGameWins(GameSession $session): void
     {
         if (!$session->winner_family_member_id) return;
 
         $winnerId = $session->winner_family_member_id;
-
-        $winsPerGame = GameSession::where('family_id', $session->family_id)
+        $wins = GameSession::where('family_id', $session->family_id)
             ->where('winner_family_member_id', $winnerId)
             ->where('game_id', $session->game_id)
             ->count();
 
-        if ($winsPerGame >= 5) FamilyMember::find($winnerId)?->awardAchievement('game_boss_5');
-        if ($winsPerGame >= 10) FamilyMember::find($winnerId)?->awardAchievement('game_master_10');
-        if ($winsPerGame >= 20) FamilyMember::find($winnerId)?->awardAchievement('game_expert_20');
+        if ($wins >= 5) FamilyMember::find($winnerId)?->awardAchievement('game_boss_5');
+        if ($wins >= 10) FamilyMember::find($winnerId)?->awardAchievement('game_master_10');
+        if ($wins >= 20) FamilyMember::find($winnerId)?->awardAchievement('game_expert_20');
     }
 
     private function checkTotalWins(GameSession $session): void
@@ -198,38 +235,37 @@ class AchievementService
         if (!$session->winner_family_member_id) return;
 
         $winnerId = $session->winner_family_member_id;
-
-        $totalWins = GameSession::where('family_id', $session->family_id)
+        $wins = GameSession::where('family_id', $session->family_id)
             ->where('winner_family_member_id', $winnerId)
             ->count();
 
-        if ($totalWins >= 5) FamilyMember::find($winnerId)?->awardAchievement('winner_boss_5');
-        if ($totalWins >= 10) FamilyMember::find($winnerId)?->awardAchievement('winner_master_10');
-        if ($totalWins >= 20) FamilyMember::find($winnerId)?->awardAchievement('winner_expert_20');
+        if ($wins >= 5) FamilyMember::find($winnerId)?->awardAchievement('winner_boss_5');
+        if ($wins >= 10) FamilyMember::find($winnerId)?->awardAchievement('winner_master_10');
+        if ($wins >= 20) FamilyMember::find($winnerId)?->awardAchievement('winner_expert_20');
     }
 
 
-private function checkActiveChamp(GameSession $session): void
-{
-    $last3Sessions = GameSession::where('family_id', $session->family_id)
-        ->orderByDesc('id')
-        ->limit(3)
-        ->pluck('id');
+    // Activity Achievements
+    private function checkActiveChamp(GameSession $session): void
+    {
+        $last3Sessions = GameSession::where('family_id', $session->family_id)
+            ->orderByDesc('id')
+            ->limit(3)
+            ->pluck('id');
 
-    $activity = GameScore::whereIn('game_session_id', $last3Sessions)
-        ->select('family_member_id', DB::raw('COUNT(*) as plays'))
-        ->groupBy('family_member_id')
-        ->orderByDesc('plays')
-        ->first();
+        $activity = GameScore::whereIn('game_session_id', $last3Sessions)
+            ->select('family_member_id', DB::raw('COUNT(*) as plays'))
+            ->groupBy('family_member_id')
+            ->orderByDesc('plays')
+            ->first();
 
-    if ($activity && $activity->plays >= 3) {
-        FamilyMember::find($activity->family_member_id)?->awardAchievement('active_champ');
+        if ($activity && $activity->plays >= 3) {
+            FamilyMember::find($activity->family_member_id)?->awardAchievement('active_champ');
+        }
     }
-}
-
 
     // ------------------------------------------------
-    // 👨‍👩‍👧‍👦 FAMILY ACHIEVEMENTS
+    //  FAMILY ACHIEVEMENTS
     // ------------------------------------------------
     private function checkFamilyAchievements(GameSession $session): void
     {
@@ -242,9 +278,9 @@ private function checkActiveChamp(GameSession $session): void
         $this->checkFamilyPlayMilestones($session);
         $this->checkFamilyFavorite($session);
         $this->checkAllTogether($session);
-
     }
 
+    //
     private function checkFamilyChamp(GameSession $session): void
     {
         $totalFamilyPoints = GameScore::where('family_id', $session->family_id)->sum('score');
@@ -261,36 +297,36 @@ private function checkActiveChamp(GameSession $session): void
         }
     }
 
-private function checkFamilyFavorite(GameSession $session): void
-{
-    $family = $session->family;
+    private function checkFamilyFavorite(GameSession $session): void
+    {
+        $family = $session->family;
 
-    $favoriteGame = GameSession::where('family_id', $family->id)
-        ->select('game_id', DB::raw('COUNT(*) as total'))
-        ->groupBy('game_id')
-        ->orderByDesc('total')
-        ->first();
+        $favoriteGame = GameSession::where('family_id', $family->id)
+            ->select('game_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('game_id')
+            ->orderByDesc('total')
+            ->first();
 
-    if ($favoriteGame && $favoriteGame->total >= 5) {
-        $family->awardAchievementToFamily('family_favorite');
+        if ($favoriteGame && $favoriteGame->total >= 5) {
+            $family->awardAchievementToFamily('family_favorite');
+        }
     }
-}
 
-private function checkAllTogether(GameSession $session): void
-{
-    $family = $session->family;
-    $familyMemberCount = $family->members()->count();
+    private function checkAllTogether(GameSession $session): void
+    {
+        $family = $session->family;
+        $familyMemberCount = $family->members()->count();
 
-    $sessionWithAll = GameScore::where('family_id', $family->id)
-        ->select('game_session_id', DB::raw('COUNT(DISTINCT family_member_id) as participants'))
-        ->groupBy('game_session_id')
-        ->having('participants', '=', $familyMemberCount)
-        ->exists();
+        $sessionWithAll = GameScore::where('family_id', $family->id)
+            ->select('game_session_id', DB::raw('COUNT(DISTINCT family_member_id) as participants'))
+            ->groupBy('game_session_id')
+            ->having('participants', '=', $familyMemberCount)
+            ->exists();
 
-    if ($sessionWithAll) {
-        $family->awardAchievementToFamily('all_together');
+        if ($sessionWithAll) {
+            $family->awardAchievementToFamily('all_together');
+        }
     }
-}
 
     private function checkFamilyStreakBoss(GameSession $session): void
     {
@@ -341,19 +377,22 @@ private function checkAllTogether(GameSession $session): void
         $family = $session->family;
         $fid = $session->family_id;
 
-        if ($family->members->every(fn($m) =>
+        if ($family->members->every(
+            fn($m) =>
             GameSession::where('family_id', $fid)->where('winner_family_member_id', $m->id)->exists()
         )) {
             $family->awardAchievementToFamily('family_of_winners');
         }
 
-        if ($family->members->every(fn($m) =>
+        if ($family->members->every(
+            fn($m) =>
             GameSession::where('family_id', $fid)->where('winner_family_member_id', $m->id)->count() >= 5
         )) {
             $family->awardAchievementToFamily('family_of_experts');
         }
 
-        if ($family->members->every(fn($m) =>
+        if ($family->members->every(
+            fn($m) =>
             GameSession::where('family_id', $fid)->where('winner_family_member_id', $m->id)->count() >= 10
         )) {
             $family->awardAchievementToFamily('are_you_humans');
@@ -365,24 +404,18 @@ private function checkAllTogether(GameSession $session): void
         $family = $session->family;
         $fid = $session->family_id;
 
-        if ($family->members->every(fn($m) =>
+        if ($family->members->every(
+            fn($m) =>
             GameScore::where('family_id', $fid)->where('family_member_id', $m->id)->count() >= 3
         )) {
             $family->awardAchievementToFamily('active_family');
         }
 
-        if ($family->members->every(fn($m) =>
+        if ($family->members->every(
+            fn($m) =>
             GameScore::where('family_id', $fid)->where('family_member_id', $m->id)->count() >= 10
         )) {
             $family->awardAchievementToFamily('super_active_family');
         }
-    }
-
-    // ------------------------------------------------
-    // 🔧 Utility
-    // ------------------------------------------------
-    private function memberIds(GameSession $session)
-    {
-        return GameScore::where('game_session_id', $session->id)->pluck('family_member_id');
     }
 }

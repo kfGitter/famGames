@@ -24,7 +24,7 @@ const goBack = () => window.history.back();
         </button>
       </div>
 
-      <!-- Motivation line -->
+      <!-- Encouragement -->
       <div class="text-sm italic text-gray-600 dark:text-gray-400">
         Keep going, {{ member.name }}! Collect more achievements and share fun moments with your family!
       </div>
@@ -48,4 +48,4 @@ const goBack = () => window.history.back();
       </div>
     </div>
   </AppLayout>
-</templat
+</template>

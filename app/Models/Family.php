@@ -51,6 +51,9 @@ public function challenges()
     return $this->hasMany(\App\Models\FamilyChallenge::class);
 }
 
-
+ public function sessions(): HasMany
+    {
+        return $this->hasMany(GameSession::class, 'family_id');
+    }
 
 }

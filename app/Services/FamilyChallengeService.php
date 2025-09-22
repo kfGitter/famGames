@@ -11,60 +11,67 @@ class FamilyChallengeService
 {
     /**
      * Recalculate progress for active challenges of a family after a session is saved.
-     *
-     * @param Family $family
-     * @param GameSession $session
-     * @return void
      */
     public function updateProgressAfterSession(Family $family, GameSession $session): void
     {
-        // Reload active challenges for this family (not completed)
         $challenges = $family->challenges()->where('completed', false)->get();
 
         foreach ($challenges as $c) {
             switch ($c->type) {
                 case 'daily':
-                    // If session is today, mark progress 1 (goal typically 1)
-                    $today = Carbon::today();
-                    if ($session->created_at->isSameDay($today)) {
-                        $c->progress = 1;
-                    }
+                    $this->handleDaily($c, $session);
                     break;
 
                 case 'weekly':
-                    // Count sessions in current week for this family
-                    $weekStart = Carbon::now()->startOfWeek();
-                    $weekEnd = Carbon::now()->endOfWeek();
-                    $count = GameSession::where('family_id', $family->id)
-                        ->whereBetween('created_at', [$weekStart, $weekEnd])
-                        ->count();
-                    $c->progress = min($c->goal, $count);
+                    $this->handleWeekly($c, $session);
                     break;
 
                 case 'hidden':
-                    // Example: if the session used a game the family never played before (new game)
-                    $playedGames = GameSession::where('family_id', $family->id)
-                        ->distinct('game_id')
-                        ->pluck('game_id')
-                        ->toArray();
-
-                    // If current session game_id is new and progress < goal, increment
-                    if (!in_array($session->game_id, $playedGames)) {
-                        $c->progress = min($c->goal, $c->progress + 1);
-                    }
+                    $this->handleHidden($c, $session);
                     break;
 
+                // Extend here for streaks, narrative, creative, etc.
                 default:
-                    // custom rules might go here
                     break;
             }
 
-            // mark complete if reached goal
+            // Mark complete if reached goal
             if ($c->progress >= $c->goal) {
                 $c->completed = true;
             }
 
             $c->save();
+        }
+    }
+
+    private function handleDaily(FamilyChallenge $c, GameSession $session): void
+    {
+        if ($session->created_at->isSameDay(Carbon::today())) {
+            $c->progress = min($c->goal, $c->progress + 1);
+        }
+    }
+
+    private function handleWeekly(FamilyChallenge $c, GameSession $session): void
+    {
+        $weekStart = $session->created_at->copy()->startOfWeek();
+        $weekEnd   = $session->created_at->copy()->endOfWeek();
+
+        $count = GameSession::where('family_id', $session->family_id)
+            ->whereBetween('created_at', [$weekStart, $weekEnd])
+            ->count();
+
+        $c->progress = min($c->goal, $count);
+    }
+
+    private function handleHidden(FamilyChallenge $c, GameSession $session): void
+    {
+        $alreadyPlayed = GameSession::where('family_id', $session->family_id)
+            ->where('id', '!=', $session->id)
+            ->where('game_id', $session->game_id)
+            ->exists();
+
+        if (!$alreadyPlayed) {
+            $c->progress = min($c->goal, $c->progress + 1);
         }
     }
 }

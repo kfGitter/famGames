@@ -13,8 +13,10 @@ use Inertia\Inertia;
 
 class GameSessionController extends Controller
 {
-    // Show page to start a new session for a game (select players)
-    public function create($id, $type = 'system')
+    /**
+     * Show page to start a new session for a game.
+     */
+    public function create(int $id, string $type = 'system')
     {
         $user = Auth::user();
 
@@ -24,10 +26,7 @@ class GameSessionController extends Controller
         }
 
         $members = $user->family->members()->orderBy('name')->get();
-
-        $game = $type === 'custom'
-            ? CustomUserGame::where('user_id', $user->id)->findOrFail($id)
-            : Game::findOrFail($id);
+        $game = $this->getGameByType($id, $type, $user);
 
         return Inertia::render('Games/Start', [
             'game' => $game,
@@ -36,17 +35,20 @@ class GameSessionController extends Controller
         ]);
     }
 
-    public function store(Request $request, StreakService $streakService, $id, $type = 'system')
+    /**
+     * Store a new game session.
+     */
+    public function store(Request $request, StreakService $streakService, int $id, string $type = 'system')
     {
         $validated = $request->validate([
             'players' => 'required|array|min:2',
             'players.*' => 'exists:family_members,id',
-        ], ['players.min' => 'You must select at least 2 players to start a game.']);
+        ], [
+            'players.min' => 'You must select at least 2 players to start a game.',
+        ]);
 
         $user = Auth::user();
-        $game = $type === 'custom'
-            ? CustomUserGame::where('user_id', $user->id)->findOrFail($id)
-            : Game::findOrFail($id);
+        $game = $this->getGameByType($id, $type, $user);
 
         // Create session
         $gameSession = GameSession::create([
@@ -62,15 +64,12 @@ class GameSessionController extends Controller
         return redirect()->route('game.session.scores.enter', $gameSession->id);
     }
 
-
-    // Show the score entry form for the session
+    /**
+     * Show the score entry form for a session.
+     */
     public function enterScores(GameSession $gameSession)
     {
         $gameSession->load('players', 'game');
-
-        // Debugging
-        //  dd($gameSession->game);
-        
 
         return Inertia::render('Games/EnterScores', [
             'gameSession' => $gameSession,
@@ -79,7 +78,9 @@ class GameSessionController extends Controller
         ]);
     }
 
-    // Save scores and update streaks
+    /**
+     * Save scores and update streaks.
+     */
     public function saveScores(Request $request, GameSession $gameSession, StreakService $streakService)
     {
         $validated = $request->validate([
@@ -90,7 +91,6 @@ class GameSessionController extends Controller
 
         $familyId = Auth::user()->family_id;
 
-        // Save all scores
         foreach ($validated['scores'] as $entry) {
             GameScore::updateOrCreate(
                 [
@@ -104,32 +104,40 @@ class GameSessionController extends Controller
             );
         }
 
-        // Determine winner (single winner; tie-break = first max)
-        $top = GameScore::where('game_session_id', $gameSession->id)
+        // Determine winner (first max)
+        $topScore = GameScore::where('game_session_id', $gameSession->id)
             ->orderByDesc('score')
             ->orderBy('id')
             ->first();
 
         $gameSession->update([
             'status' => 'completed',
-            'winner_family_member_id' => $top?->family_member_id,
+            'winner_family_member_id' => $topScore?->family_member_id,
         ]);
 
-        // --- 🔹 NEW: Update streaks in real time ---
+        // Update streaks
         $date = now();
-
-        // Update **individual member streaks**
         foreach ($gameSession->players as $member) {
             $streakService->updateMemberStreaks($member, $date);
         }
 
-        // Update **family weekly streak** if all members played
         $streakService->updateFamilyWeeklyStreak($gameSession->family, $date->startOfWeek());
         $streakService->updateFamilyDailyStreak($gameSession->family, $date);
 
-        // --- 🔹 Evaluate achievements ---
+        // Evaluate achievements
         app(\App\Services\AchievementService::class)->evaluateAfterSession($gameSession);
 
-        return redirect()->route('dashboard')->with('message', 'Scores saved! Session completed.');
+        return redirect()->route('dashboard')
+            ->with('message', 'Scores saved! Session completed.');
+    }
+
+    /**
+     * Helper: fetch game by type
+     */
+    private function getGameByType(int $id, string $type, $user)
+    {
+        return $type === 'custom'
+            ? CustomUserGame::where('user_id', $user->id)->findOrFail($id)
+            : Game::findOrFail($id);
     }
 }

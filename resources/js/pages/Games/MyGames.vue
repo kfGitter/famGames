@@ -3,8 +3,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { StarIcon as StarOutline } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { Link } from '@inertiajs/vue3';
-import { computed, defineProps, ref, watch } from 'vue';
 import axios from 'axios';
+import { computed, defineProps, ref, watch } from 'vue';
 
 interface Game {
     id: number;
@@ -19,7 +19,6 @@ const props = defineProps<{ games: Game[]; members: any[] }>();
 
 const search = ref('');
 
-// local copy for removal
 const localGames = ref<Game[]>([...props.games]);
 const selectedTags = ref<number[]>([]);
 const allTags = ref<Game['tags']>([]);
@@ -29,7 +28,9 @@ allTags.value = Array.from(new Map(localGames.value.flatMap((g) => g.tags).map((
 
 watch(
     () => props.games,
-    (val) => { localGames.value = [...val]; },
+    (val) => {
+        localGames.value = [...val];
+    },
     { deep: true },
 );
 
@@ -48,13 +49,22 @@ function viewGame(game) {
 
 function startGame(game) {
     if (!members.value || members.value.length < 2) {
-        alert("⚠️ You need at least two family members to start a game.");
+        alert('⚠️ You need at least two family members to start a game.');
         return;
     }
     const type = game.custom ? 'custom' : 'system';
     window.location.href = `/start-game/${game.id}/${type}`;
 }
 
+/**
+ * Removes a game from the user's games list after confirmation.
+ *
+ * Prompts the user for confirmation before proceeding. Sends a DELETE request to the server
+ * to remove the specified game, using the game's ID and type (custom or system).
+ * Updates the local games list on success. Handles and displays errors if the operation fails.
+ *
+ * @param {Game} game - The game object to be removed.
+ */
 async function removeGame(game: Game) {
     if (!confirm(`Remove "${game.title}" from your games?`)) return;
     try {
@@ -75,6 +85,13 @@ async function removeGame(game: Game) {
     }
 }
 
+/**
+ * Toggles the favorite status of a game.
+ * Sends a POST request to update the favorite status on the server,
+ * then updates the local game object's is_favorite property.
+ *
+ * @param {Game} game - The game object to toggle favorite status for.
+ */
 const toggleFavorite = async (game: Game) => {
     const type = game.custom ? 'custom' : 'system';
     try {
@@ -87,77 +104,89 @@ const toggleFavorite = async (game: Game) => {
 </script>
 
 <template>
-<AppLayout>
-    <div class="p-6 space-y-4">
-        <h1 class="text-3xl font-bold">My Games</h1>
-        <!-- Search -->
-        <input
-            v-model="search"
-            type="text"
-            placeholder="Search games..."
-            class="w-full rounded border border-gray-300 p-2 text-black focus:ring-2 focus:ring-blue-400 focus:outline-none"
-        />
+    <AppLayout>
+        <div class="space-y-4 p-6">
+            <h1 class="text-3xl font-bold">My Games</h1>
+            <!-- Search -->
+            <input
+                v-model="search"
+                type="text"
+                placeholder="Search games..."
+                class="w-full rounded border border-gray-300 p-2 text-black focus:ring-2 focus:ring-blue-400 focus:outline-none"
+            />
 
-        <!-- Add custom game -->
-        <div class="flex justify-end mb-4">
-            <Link href="/my-games/create" class="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 shadow-sm">
-                + Add Custom Game
-            </Link>
-        </div>
+            <!-- Add custom game -->
+            <div class="mb-4 flex justify-end">
+                <Link href="/my-games/create" class="rounded-lg bg-green-600 px-4 py-2 text-white shadow-sm hover:bg-green-700">
+                    + Add Custom Game
+                </Link>
+            </div>
 
-        <!-- Tags -->
-        <div class="flex gap-2 overflow-x-auto py-2 no-scrollbar mb-4">
-            <button
-                v-for="tag in allTags"
-                :key="tag.id"
-                @click="() => { if(selectedTags.includes(tag.id)) { selectedTags = selectedTags.filter(id => id !== tag.id) } else { selectedTags.push(tag.id) }}"
-                :class="[
-                    'rounded-full border px-3 py-1 text-sm whitespace-nowrap transition',
-                    selectedTags.includes(tag.id)
-                        ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200',
-                ]"
-            >
-                {{ tag.name }}
-            </button>
-        </div>
+            <!-- Tags -->
+            <div class="no-scrollbar mb-4 flex gap-2 overflow-x-auto py-2">
+                <button
+                    v-for="tag in allTags"
+                    :key="tag.id"
+                    @click="
+                        () => {
+                            if (selectedTags.includes(tag.id)) {
+                                selectedTags = selectedTags.filter((id) => id !== tag.id);
+                            } else {
+                                selectedTags.push(tag.id);
+                            }
+                        }
+                    "
+                    :class="[
+                        'rounded-full border px-3 py-1 text-sm whitespace-nowrap transition',
+                        selectedTags.includes(tag.id)
+                            ? 'border-blue-600 bg-blue-600 text-white'
+                            : 'border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200',
+                    ]"
+                >
+                    {{ tag.name }}
+                </button>
+            </div>
 
-        <!-- Game list -->
-        <div class="max-h-[70vh] overflow-y-auto divide-y">
-            <div v-if="filteredGames.length === 0" class="text-center text-gray-500 py-10">You have not added any games yet.</div>
+            <!-- Game list -->
+            <div class="max-h-[70vh] divide-y overflow-y-auto">
+                <div v-if="filteredGames.length === 0" class="py-10 text-center text-gray-500">You have not added any games yet.</div>
 
-            <ul class="space-y-4">
-                <li v-for="game in filteredGames" :key="game.id" class="rounded-xl border border-gray-300 p-4 hover:bg-gray-50 shadow-sm transition">
-                    <!-- Favorite star -->
-                    <button @click="toggleFavorite(game)" class="float-right">
-                        <component
-                            :is="game.is_favorite ? StarSolid : StarOutline"
-                            class="h-6 w-6"
-                            :class="game.is_favorite ? 'text-yellow-400' : 'text-gray-400'"
-                        />
-                    </button>
-
-                    <!-- Game title -->
-                    <h2 class="text-xl font-semibold mb-2 text-gray-900">{{ game.title }}</h2>
-
-                    <!-- Buttons -->
-                    <div class="flex flex-wrap justify-end gap-2 mb-2">
-                        <button @click="viewGame(game)" class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 shadow-sm">
-                            View Details
+                <ul class="space-y-4">
+                    <li
+                        v-for="game in filteredGames"
+                        :key="game.id"
+                        class="rounded-xl border border-gray-300 p-4 shadow-sm transition hover:bg-gray-50"
+                    >
+                        <!-- Favorite star -->
+                        <button @click="toggleFavorite(game)" class="float-right">
+                            <component
+                                :is="game.is_favorite ? StarSolid : StarOutline"
+                                class="h-6 w-6"
+                                :class="game.is_favorite ? 'text-yellow-400' : 'text-gray-400'"
+                            />
                         </button>
-                        <button @click="startGame(game)" class="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700 shadow-sm">
-                            Start
-                        </button>
-                        <button @click="removeGame(game)" class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700 shadow-sm">
-                            Remove
-                        </button>
-                    </div>
 
-                    <!-- Description -->
-                    <p class="text-gray-700">{{ game.description || 'No description available.' }}</p>
-                </li>
-            </ul>
+                        <!-- Game title -->
+                        <h2 class="mb-2 text-xl font-semibold text-gray-900">{{ game.title }}</h2>
+
+                        <!-- Buttons -->
+                        <div class="mb-2 flex flex-wrap justify-end gap-2">
+                            <button @click="viewGame(game)" class="rounded-lg bg-blue-600 px-4 py-2 text-white shadow-sm hover:bg-blue-700">
+                                View Details
+                            </button>
+                            <button @click="startGame(game)" class="rounded bg-green-600 px-3 py-1 text-white shadow-sm hover:bg-green-700">
+                                Start
+                            </button>
+                            <button @click="removeGame(game)" class="rounded bg-red-600 px-3 py-1 text-white shadow-sm hover:bg-red-700">
+                                Remove
+                            </button>
+                        </div>
+
+                        <!-- Description -->
+                        <p class="text-gray-700">{{ game.description || 'No description available.' }}</p>
+                    </li>
+                </ul>
+            </div>
         </div>
-    </div>
-</AppLayout>
+    </AppLayout>
 </template>

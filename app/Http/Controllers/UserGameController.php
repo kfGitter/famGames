@@ -14,69 +14,56 @@ class UserGameController extends Controller
     {
         $user = Auth::user();
 
-        $systemGames = $user->games()->with('tags')->get()->map(fn($g) => [
-            'id' => $g->id,
-            'title' => $g->title,
-            'description' => $g->description,
-            'tags' => $g->tags,
+        $systemGames = $user->games()->with('tags')->get()->map(fn($game) => [
+            'id' => $game->id,
+            'title' => $game->title,
+            'description' => $game->description,
+            'tags' => $game->tags,
             'custom' => false,
-            'is_favorite' => (bool) ($g->pivot->is_favorite ?? false),
-
+            'is_favorite' => (bool) ($game->pivot->is_favorite ?? false),
         ]);
 
-        $customGames = $user->customUserGames()->with('tags')->get()->map(fn($g) => [
-            'id' => $g->id,
-            'title' => $g->title,
-            'description' => $g->description,
-            'tags' => $g->tags,
+        $customGames = $user->customUserGames()->with('tags')->get()->map(fn($game) => [
+            'id' => $game->id,
+            'title' => $game->title,
+            'description' => $game->description,
+            'tags' => $game->tags,
             'custom' => true,
-            'is_favorite' => (bool) ($g->is_favorite ?? false),
+            'is_favorite' => (bool) ($game->is_favorite ?? false),
         ]);
 
         $games = $systemGames->concat($customGames);
+        $members = $user->family?->members ?? [];
 
-        $members = auth()->user()->family?->members ?? [];
-
-        return inertia('Games/MyGames', ['games' => $games, 'members' => $members]);
+        return inertia('Games/MyGames', compact('games', 'members'));
     }
 
+    // Toggle favorite status
+    public function toggleFavorite(string $type, int $id)
+    {
+        $user = Auth::user();
+        $isFavorite = false;
 
-    public function toggleFavorite($type, $id)
-{
-    $user = Auth::user();
-    $newStatus = false;
+        if ($type === 'system') {
+            $game = $user->games()->where('game_id', $id)->firstOrFail();
+            $isFavorite = ! $game->pivot->is_favorite;
+            $user->games()->updateExistingPivot($id, ['is_favorite' => $isFavorite]);
+        } elseif ($type === 'custom') {
+            $customGame = $user->customUserGames()->findOrFail($id);
+            $isFavorite = ! $customGame->is_favorite;
+            $customGame->update(['is_favorite' => $isFavorite]);
+        }
 
-    if ($type === 'system') {
-        $pivot = $user->games()->where('game_id', $id)->first()->pivot;
-        $newStatus = ! $pivot->is_favorite;
-
-        $user->games()->updateExistingPivot($id, [
-            'is_favorite' => $newStatus,
-        ]);
-    } elseif ($type === 'custom') {
-        $customGame = CustomUserGame::where('id', $id)
-            ->where('user_id', $user->id)
-            ->firstOrFail();
-
-        $newStatus = ! $customGame->is_favorite;
-        $customGame->update([
-            'is_favorite' => $newStatus,
-        ]);
+        return response()->json(['success' => true, 'is_favorite' => $isFavorite]);
     }
-
-    return response()->json([
-        'success' => true,
-        'is_favorite' => $newStatus,
-    ]);
-}
-
 
     // Add system or custom game
     public function store(Request $request)
     {
-        if ($request->custom) {
-            // ✅ Custom game
-            $request->validate([
+        $user = Auth::user();
+
+        if ($request->boolean('custom')) {
+            $validated = $request->validate([
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'rules' => 'nullable|string',
@@ -87,13 +74,8 @@ class UserGameController extends Controller
                 'tags.*' => 'exists:tags,id',
             ]);
 
-            $customGame = Auth::user()->customUserGames()->create($request->only([
-                'title',
-                'description',
-                'rules',
-                'min_players',
-                'max_players',
-                'category'
+            $customGame = $user->customUserGames()->create($request->only([
+                'title', 'description', 'rules', 'min_players', 'max_players', 'category'
             ]));
 
             if (!empty($request->tags)) {
@@ -101,37 +83,35 @@ class UserGameController extends Controller
             }
 
             return back()->with('success', 'Custom game added!');
-        } else {
-            // ✅ System game
-            $request->validate([
-                'game_id' => 'required|integer|exists:games,id',
-                'tags' => 'nullable|array',
-                'tags.*' => 'exists:tags,id',
-
-            ]);
-
-            Auth::user()->games()->syncWithoutDetaching($request->game_id);
-
-            if (!empty($request->tags)) {
-                $game = Game::find($request->game_id);
-                $game->tags()->sync($request->tags);
-            }
-
-            return back()->with('success', 'Game added to MyGames!');
         }
+
+        // System game
+        $request->validate([
+            'game_id' => 'required|integer|exists:games,id',
+            'tags' => 'nullable|array',
+            'tags.*' => 'exists:tags,id',
+        ]);
+
+        $user->games()->syncWithoutDetaching($request->game_id);
+
+        if (!empty($request->tags)) {
+            $game = Game::find($request->game_id);
+            $game->tags()->sync($request->tags);
+        }
+
+        return back()->with('success', 'Game added to MyGames!');
     }
 
     // Remove system or custom game
-    public function destroy($id, Request $request)
+    public function destroy(int $id, Request $request)
     {
+        $user = Auth::user();
         $type = $request->query('type', 'system');
 
         if ($type === 'custom') {
-            $game = Auth::user()->customUserGames()->findOrFail($id);
-            $game->delete();
+            $user->customUserGames()->findOrFail($id)->delete();
         } else {
-            $game = Game::findOrFail($id);
-            Auth::user()->games()->detach($game->id);
+            $user->games()->detach($id);
         }
 
         return response()->json(['message' => 'Game removed!']);

@@ -25,4 +25,5 @@ class GameSession extends Model
     {
         return $this->belongsTo(FamilyMember::class, 'winner_family_member_id');
     }
+    
 }
